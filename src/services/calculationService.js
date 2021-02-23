@@ -802,10 +802,7 @@ let CalculationService = {
             if (derivedBinding.valuesets) {
               derivedBinding.valuesets.forEach(vs => {
                 if(valuesetsMap[srcIgId][vs] &&  valuesetsMap[derivedIgId][vs]){
-                  if(vs === 'HL70211'){
-                    console.log("===")
-                    console.log(valuesetsMap[srcIgId][vs].children,  valuesetsMap[derivedIgId][vs].children)
-                  }
+            
                   if(ValuesetService.compareCodes(valuesetsMap[srcIgId][vs].children,  valuesetsMap[derivedIgId][vs].children)){
                     segmentDifferential.changed = true;
                     bindingDifferential.changed = true;
