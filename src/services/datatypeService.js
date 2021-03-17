@@ -1,3 +1,5 @@
+const SegmentService = require("./segmentService");
+
 let DatatypeService = {
   populateDatatypesMap: function(datatypesMap, igId, datatypes) {
     if (datatypes) {
@@ -25,6 +27,16 @@ let DatatypeService = {
         label: datatype["$"].label,
         children: this.extractComponents(datatype.Component)
       };
+      if (
+        datatype.Binding && datatype.Binding[0].StructureElementBindings &&
+        datatype.Binding[0].StructureElementBindings[0] &&
+        datatype.Binding[0].StructureElementBindings[0].StructureElementBinding
+      ) {
+        result.bindings = SegmentService.extractBindings(
+          datatype.Binding[0].StructureElementBindings[0].StructureElementBinding
+        );
+      }
+
     }
     return result;
   },

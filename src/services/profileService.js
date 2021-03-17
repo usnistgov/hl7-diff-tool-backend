@@ -1,4 +1,5 @@
 const ComparisonService = require("./comparisonService");
+const SegmentService = require("./segmentService");
 
 let ProfileService = {
   populateSourceProfile(source) {
@@ -20,11 +21,22 @@ let ProfileService = {
     let result = {};
     if (profile[0]) {
       profile = profile[0];
+
       if (profile.SegmentRef && profile.SegmentRef.length > 0) {
         result.segRefs = this.serializeSegRefs(profile.SegmentRef);
       }
       if (profile.Group && profile.Group.length > 0) {
         result.groups = this.serializeGroups(profile.Group);
+      }
+
+      if (
+        profile.Binding && profile.Binding[0].StructureElementBindings &&
+        profile.Binding[0].StructureElementBindings[0] &&
+        profile.Binding[0].StructureElementBindings[0].StructureElementBinding
+      ) {
+        result.bindings = SegmentService.extractBindings(
+          profile.Binding[0].StructureElementBindings[0].StructureElementBinding
+        );
       }
     }
     return result;

@@ -7,9 +7,18 @@ let ValuesetService = {
       valuesets.forEach(valueset => {
         const vsObject = valueset.Valueset[0];
         const bindingId = vsObject["$"].bindingIdentifier;
-
+        let version = vsObject["$"].version;
+        if (version === "") {
+          version = null;
+        }
         if (!valuesetsMap[igId][bindingId]) {
-          valuesetsMap[igId][bindingId] = this.extractValueset(vsObject);
+          valuesetsMap[igId][bindingId] = {};
+        }
+
+        if (!valuesetsMap[igId][bindingId][version]) {
+          valuesetsMap[igId][bindingId][version] = this.extractValueset(
+            vsObject
+          );
         }
       });
     }
@@ -29,9 +38,9 @@ let ValuesetService = {
         numberOfCodes: valueset["$"].numberOfCodes,
         oid: valueset["$"].oid,
         stability: valueset["$"].stability,
+        version: valueset["$"].version,
         children: this.extractCodes(valueset.Codes)
       };
-   
     }
     return result;
   },
@@ -51,6 +60,37 @@ let ValuesetService = {
   },
 
   compareCodes(src, derived) {
+    let codes = {
+      changed: false,
+      list: []
+    };
+    if (derived) {
+      derived.forEach(code => {
+        const c = src.find(
+          x => x.codeSystem === code.codeSystem && x.value === code.value
+        );
+        if (c) {
+          let clonedCode = Object.assign({}, code);
+          if (c.usage !== code.usage) {
+            codes.changed = true;
+            clonedCode.usage = {
+              value: code.usage,
+              status: "changed"
+            };
+          }
+
+          codes.list.push(code);
+        } else {
+          codes.changed = true;
+          codes.list.push({
+            ...code,
+            status: "added"
+          });
+        }
+      });
+    }
+    return codes;
+
     let hasChanged = false;
     if (src && derived) {
       if (src.length === derived.length) {

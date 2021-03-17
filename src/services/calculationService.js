@@ -81,6 +81,9 @@ let CalculationService = {
             sourceProfile.id,
             datatypesMap,
             valuesetsMap
+          ),
+          bindings: this.extractProfileBindings(
+            profile.ConformanceProfile[0].Binding
           )
         });
       });
@@ -135,6 +138,21 @@ let CalculationService = {
 
     return results;
   },
+  extractProfileBindings(Binding) {
+   
+    let bindings = [];
+    if (
+      Binding &&
+      Binding[0].StructureElementBindings &&
+      Binding[0].StructureElementBindings[0] &&
+      Binding[0].StructureElementBindings[0].StructureElementBinding
+    ) {
+      bindings = SegmentService.extractBindings(
+        Binding[0].StructureElementBindings[0].StructureElementBinding
+      );
+    }
+    return bindings;
+  },
   spreadBindings(fields, bindings) {
     bindings.forEach(binding => {
       if (binding.data.LocationInfoType === "FIELD") {
@@ -144,6 +162,21 @@ let CalculationService = {
             field.data.bindings = [];
           }
           field.data.bindings.push(binding);
+        }
+      }
+    });
+  },
+  spreadDatatypeBindings(components, bindings) {
+    bindings.forEach(binding => {
+      if (binding.data.LocationInfoType === "COMPONENT") {
+        let component = components.find(
+          f => f.data.position === binding.data.position
+        );
+        if (component) {
+          if (!component.data.bindings) {
+            component.data.bindings = [];
+          }
+          component.data.bindings.push(binding);
         }
       }
     });
@@ -265,6 +298,20 @@ let CalculationService = {
     });
     return res;
   },
+  extractLocations(locations) {
+    let locs = [];
+    let results = [];
+    if (locations) {
+      locs = locations.split(",");
+      locs.forEach(location => {
+        let loc = location.split(".");
+        location = loc[loc.length - 1];
+        location = parseInt(location);
+        results.push(location);
+      });
+    }
+    return results;
+  },
 
   populateSrcValuesets(
     igId,
@@ -281,7 +328,13 @@ let CalculationService = {
           data: {
             position: binding.position,
             bindingLocation: binding.bindingLocation,
-            locations: binding.locations,
+            // locations: binding.locations,
+            locations: {
+              src: {
+                value: this.extractLocations(binding.locations)
+              },
+              derived: {}
+            },
             LocationInfoType: binding.LocationInfoType,
             strength: {
               src: {
@@ -291,11 +344,21 @@ let CalculationService = {
             },
             valuesets: {
               src: {
-                value: binding.valuesets
+                value: this.extractVSWithVersion(
+                  binding.valuesets,
+                  binding.versions,
+                  valuesetsMap,
+                  igId
+                )
               },
               derived: {}
             },
-            codes: this.buildSrcCodes(binding.valuesets, valuesetsMap, igId)
+            codes: this.buildSrcCodes(
+              binding.valuesets,
+              binding.versions,
+              valuesetsMap,
+              igId
+            )
           },
           changed: false
         };
@@ -305,14 +368,42 @@ let CalculationService = {
 
     return results;
   },
-  buildSrcCodes(valuesets, valuesetsMap, igId) {
+  extractVSWithVersion(valuesets, versions, valuesetsMap, igId) {
+    let result = [];
+    if (valuesets) {
+      valuesets.forEach((valueset, i) => {
+        result.push({
+          bindingIdentifier: valueset,
+          version: versions[i],
+          codes: this.getCodes(valueset, versions[i], valuesetsMap, igId)
+        });
+      });
+    }
+    return result;
+  },
+  getCodes(valueset, version, valuesetsMap, igId) {
+    let result = [];
+    if (
+      valueset &&
+      valuesetsMap[igId][valueset] &&
+      valuesetsMap[igId][valueset][version]
+    ) {
+      result = valuesetsMap[igId][valueset][version].children;
+    }
+
+    return result;
+  },
+  buildSrcCodes(valuesets, versions, valuesetsMap, igId) {
     let result = {};
     if (valuesets) {
-      valuesets.forEach(valueset => {
-        if (valuesetsMap[igId][valueset]) {
+      valuesets.forEach((valueset, i) => {
+        if (
+          valuesetsMap[igId][valueset] &&
+          valuesetsMap[igId][valueset][versions[i]]
+        ) {
           result[valueset] = {
             src: {
-              value: valuesetsMap[igId][valueset].children
+              value: valuesetsMap[igId][valueset][versions[i]].children
             },
             derived: {}
           };
@@ -370,11 +461,20 @@ let CalculationService = {
           configuration,
           currentPath,
           datatypesMap,
-          1
+          1,
+          valuesetsMap
         );
       }
 
       if (configuration.valueset) {
+        fieldDifferential.bindings = this.populateSrcValuesets(
+          igId,
+          datatypesMap[igId][field.datatype].bindings,
+          configuration,
+          path,
+          datatypesMap,
+          valuesetsMap
+        );
       }
 
       results.push(fieldDifferential);
@@ -387,7 +487,8 @@ let CalculationService = {
     configuration,
     path,
     datatypesMap,
-    level
+    level,
+    valuesetsMap
   ) {
     let results = [];
     components.forEach(component => {
@@ -429,7 +530,18 @@ let CalculationService = {
           configuration,
           currentPath,
           datatypesMap,
-          2
+          2,
+          valuesetsMap
+        );
+      }
+      if (configuration.valueset) {
+        componentDifferential.bindings = this.populateSrcValuesets(
+          igId,
+          datatypesMap[igId][component.datatype].bindings,
+          configuration,
+          currentPath,
+          datatypesMap,
+          valuesetsMap
         );
       }
 
@@ -670,6 +782,17 @@ let CalculationService = {
           // new segmentref
         }
       });
+      if (configuration.valueset) {
+        // this.compareBindings(
+        //   sourceSegment,
+        //   srcIgId,
+        //   derivedIgId,
+        //   derivedSegment.bindings,
+        //   configuration,
+        //   datatypesMap,
+        //   valuesetsMap
+        // );
+      }
     } else {
       // Can't compare
     }
@@ -692,7 +815,8 @@ let CalculationService = {
         derivedIgId,
         derivedSegment.children,
         configuration,
-        datatypesMap
+        datatypesMap,
+        valuesetsMap
       );
       if (configuration.valueset) {
         this.compareBindings(
@@ -730,8 +854,9 @@ let CalculationService = {
     if (derivedBindings) {
       derivedBindings.forEach(derivedBinding => {
         let bindingDifferential = segmentDifferential.bindings.find(
-          b => b.data.position === derivedBinding.position
+          b => b.data && b.data.position === derivedBinding.position
         );
+
         if (bindingDifferential) {
           if (
             derivedBinding.strength !=
@@ -746,96 +871,195 @@ let CalculationService = {
             }
           }
 
-          const diff = _.intersection(
-            derivedBinding.valuesets,
-            bindingDifferential.data.valuesets.src.value
+          const derivedLocations = this.extractLocations(
+            derivedBinding.locations
           );
-          if (
-            derivedBinding.valuesets.length !==
-              bindingDifferential.data.valuesets.src.value.length ||
-            (diff && diff.length !== derivedBinding.valuesets.length)
-          ) {
-            if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
+          const locationsDiff = _.difference(
+            derivedLocations,
+            bindingDifferential.data.locations.src.value
+          );
+          if (locationsDiff && locationsDiff.length > 0) {
+            if (!bindingDifferential.data.locations.derived[derivedIgId]) {
               segmentDifferential.changed = true;
               bindingDifferential.changed = true;
-              bindingDifferential.data.valuesets.derived[derivedIgId] = {
-                value: derivedBinding.valuesets
+              bindingDifferential.data.locations.derived[derivedIgId] = {
+                value: derivedLocations
               };
-              if (derivedBinding.valuesets) {
-                derivedBinding.valuesets.forEach(vs => {
-                  if (!bindingDifferential.data.codes[vs]) {
-                    bindingDifferential.data.codes[vs] = {
-                      src: {},
-                      derived: {}
-                    };
-                  }
-                  if (
-                    !bindingDifferential.data.codes[vs].derived[derivedIgId] &&
-                    valuesetsMap[derivedIgId][vs]
-                  ) {
-                    bindingDifferential.data.codes[vs].derived[derivedIgId] =
-                      valuesetsMap[derivedIgId][vs].children;
-                  }
-                });
-              }
-
-              if (
-                derivedBinding.valuesets.length ===
-                bindingDifferential.data.valuesets.src.value.length
-              ) {
-                // order both lists and compare codes
-                let codes = bindingDifferential.data.codes;
-                bindingDifferential.data.valuesets.src.value.forEach(
-                  (vs, i) => {
-                    const derivedVs = derivedBinding.valuesets[i];
-                  }
-                );
-                // const srcValuesets = bindingDifferential.data.valuesets.src.value.sort(
-                //   (a, b) => a - b
-                // );
-                // const derivedValuesets = derivedBinding.valuesets.sort(
-                //   (a, b) => a - b
-                // );
-              }
             }
-          } else {
-            if (derivedBinding.valuesets) {
-              derivedBinding.valuesets.forEach(vs => {
-                if(valuesetsMap[srcIgId][vs] &&  valuesetsMap[derivedIgId][vs]){
-            
-                  if(ValuesetService.compareCodes(valuesetsMap[srcIgId][vs].children,  valuesetsMap[derivedIgId][vs].children)){
-                    segmentDifferential.changed = true;
-                    bindingDifferential.changed = true;
-                    if (!bindingDifferential.data.codes[vs]) {
-                      bindingDifferential.data.codes[vs] = {
-                        src: {},
-                        derived: {}
-                      };
-                      bindingDifferential.data.codes[vs].derived[derivedIgId] =
-                      valuesetsMap[derivedIgId][vs].children;
-                    }
-                  }
+          }
+
+          derivedBinding.valuesets.forEach((vs, i) => {
+            const srcVs = bindingDifferential.data.valuesets.src.value.find(
+              v => {
+                return (
+                  v.version === derivedBinding.versions[i] &&
+                  v.bindingIdentifier === vs
+                );
+              }
+            );
+
+            if (srcVs) {
+              // compare codes
+              const comparedCodes = ValuesetService.compareCodes(
+                valuesetsMap[srcIgId][vs][derivedBinding.versions[i]].children,
+                valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
+                  .children
+              );
+
+              let diff = {
+                bindingIdentifier: vs,
+                version: derivedBinding.versions[i],
+                status: "unchanged"
+              };
+              if (comparedCodes.changed) {
+                segmentDifferential.changed = true;
+                bindingDifferential.changed = true;
+                diff.status = "changed";
+                diff.codes = comparedCodes.list;
+                if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
+                  bindingDifferential.data.valuesets.derived[derivedIgId] = {
+                    value: []
+                  };
                 }
-             
-
-                
-
+                bindingDifferential.data.valuesets.derived[
+                  derivedIgId
+                ].value.push(diff);
+              } else {
+                // bindingDifferential.changed = true;
+                // segmentDifferential.changed = true;
+                diff.codes =
+                  valuesetsMap[derivedIgId][vs][
+                    derivedBinding.versions[i]
+                  ].children;
+                if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
+                  bindingDifferential.data.valuesets.derived[derivedIgId] = {
+                    value: []
+                  };
+                }
+                if (bindingDifferential.data.valuesets.derived[derivedIgId])
+                  bindingDifferential.data.valuesets.derived[
+                    derivedIgId
+                  ].value.push(diff);
+              }
+            } else {
+              // Value set binding added
+              segmentDifferential.changed = true;
+              bindingDifferential.changed = true;
+              if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
+                bindingDifferential.data.valuesets.derived[derivedIgId] = {
+                  value: []
+                };
+              }
+              bindingDifferential.data.valuesets.derived[
+                derivedIgId
+              ].value.push({
+                bindingIdentifier: vs,
+                version: derivedBinding.versions[i],
+                codes:
+                  valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
+                    .children,
+                status: "added"
               });
             }
-          
-       
-          }
+          });
+
+          // const diff = _.intersection(
+          //   derivedBinding.valuesets,
+          //   bindingDifferential.data.valuesets.src.value
+          // );
+          // if (
+          //   derivedBinding.valuesets.length !==
+          //     bindingDifferential.data.valuesets.src.value.length ||
+          //   (diff && diff.length !== derivedBinding.valuesets.length)
+          // ) {
+          //   if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
+          //     segmentDifferential.changed = true;
+          //     bindingDifferential.changed = true;
+          //     bindingDifferential.data.valuesets.derived[derivedIgId] = {
+          //       value: derivedBinding.valuesets
+          //     };
+          //     if (derivedBinding.valuesets) {
+          //       const versions = derivedBinding.versions;
+          //       derivedBinding.valuesets.forEach((vs, i) => {
+          //         if (!bindingDifferential.data.codes[vs]) {
+          //           bindingDifferential.data.codes[vs] = {
+          //             src: {},
+          //             derived: {}
+          //           };
+          //         }
+          //         if (
+          //           !bindingDifferential.data.codes[vs].derived[derivedIgId] &&
+          //           valuesetsMap[derivedIgId][vs][versions[i]]
+          //         ) {
+          //           bindingDifferential.data.codes[vs].derived[derivedIgId] =
+          //             valuesetsMap[derivedIgId][vs][versions[i]].children;
+          //         }
+          //       });
+          //     }
+
+          //     if (
+          //       derivedBinding.valuesets.length ===
+          //       bindingDifferential.data.valuesets.src.value.length
+          //     ) {
+          //       // order both lists and compare codes
+          //       let codes = bindingDifferential.data.codes;
+          //       bindingDifferential.data.valuesets.src.value.forEach(
+          //         (vs, i) => {
+          //           const derivedVs = derivedBinding.valuesets[i];
+          //         }
+          //       );
+          //       // const srcValuesets = bindingDifferential.data.valuesets.src.value.sort(
+          //       //   (a, b) => a - b
+          //       // );
+          //       // const derivedValuesets = derivedBinding.valuesets.sort(
+          //       //   (a, b) => a - b
+          //       // );
+          //     }
+          //   }
+          // } else {
+          //   if (derivedBinding.valuesets) {
+          //     const versions = derivedBinding.versions;
+          //     derivedBinding.valuesets.forEach((vs, i) => {
+          //       if (
+          //         valuesetsMap[srcIgId][vs] &&
+          //         valuesetsMap[srcIgId][vs][versions[i]] &&
+          //         valuesetsMap[derivedIgId][vs] &&
+          //         valuesetsMap[derivedIgId][vs][versions[i]]
+          //       ) {
+          //         if (
+          //           ValuesetService.compareCodes(
+          //             valuesetsMap[srcIgId][vs][versions[i]].children,
+          //             valuesetsMap[derivedIgId][vs][versions[i]].children
+          //           )
+          //         ) {
+          //           segmentDifferential.changed = true;
+          //           bindingDifferential.changed = true;
+          //           if (!bindingDifferential.data.codes[vs]) {
+          //             bindingDifferential.data.codes[vs] = {
+          //               src: {},
+          //               derived: {}
+          //             };
+          //             bindingDifferential.data.codes[vs].derived[derivedIgId] =
+          //               valuesetsMap[derivedIgId][vs][versions[i]].children;
+          //           }
+          //         }
+          //       }
+          //     });
+          //   }
+          // }
         }
       });
     }
   },
+
   compareFields(
     segmentDifferential,
     srcIgId,
     derivedIgId,
     derivedFields,
     configuration,
-    datatypesMap
+    datatypesMap,
+    valuesetsMap
   ) {
     derivedFields.forEach(derivedField => {
       let fieldDifferential = segmentDifferential.children.find(
@@ -873,6 +1097,22 @@ let CalculationService = {
             datatypesMap[srcIgId][fieldDifferential.data.datatype.src.value];
           const derivedDt = datatypesMap[derivedIgId][derivedField.datatype];
 
+          if (configuration.valueset) {
+            this.compareBindings(
+              fieldDifferential,
+              srcIgId,
+              derivedIgId,
+              derivedDt.bindings,
+              configuration,
+              datatypesMap,
+              valuesetsMap
+            );
+            this.spreadDatatypeBindings(
+              fieldDifferential.children,
+              fieldDifferential.bindings
+            );
+          }
+
           if (
             srcDt.children &&
             srcDt.children.length > 0 &&
@@ -887,38 +1127,11 @@ let CalculationService = {
               derivedIgId,
               derivedDt.children,
               configuration,
-              datatypesMap
+              datatypesMap,
+              valuesetsMap
             );
           }
         }
-        //OLD
-        // if (
-        //   configuration.datatype &&
-        //   derivedField.datatype != fieldDifferential.data.datatype.src.value
-        // ) {
-        //   if (!fieldDifferential.data.datatype.derived[derivedIgId]) {
-        //     segmentDifferential.changed = true;
-        //     fieldDifferential.changed = true;
-
-        //     fieldDifferential.data.datatype.derived[derivedIgId] = {
-        //       value: derivedField.datatype
-        //     };
-        //     const srcDt =
-        //       datatypesMap[srcIgId][fieldDifferential.data.datatype.src.value];
-        //     const derivedDt = datatypesMap[derivedIgId][derivedField.datatype];
-        //     if (srcDt.children && srcDt.children.length > 0) {
-        //       this.compareComponents(
-        //         segmentDifferential,
-        //         fieldDifferential,
-        //         srcIgId,
-        //         derivedIgId,
-        //         derivedDt.children,
-        //         configuration,
-        //         datatypesMap
-        //       );
-        //     }
-        //   }
-        // }
       }
     });
   },
@@ -930,7 +1143,8 @@ let CalculationService = {
     derivedIgId,
     derivedComponents,
     configuration,
-    datatypesMap
+    datatypesMap,
+    valuesetsMap
   ) {
     derivedComponents.forEach(derivedComponent => {
       let differential;
@@ -984,9 +1198,24 @@ let CalculationService = {
 
           const srcDt =
             datatypesMap[srcIgId][differential.data.datatype.src.value];
-
           const derivedDt =
             datatypesMap[derivedIgId][derivedComponent.datatype];
+
+          if (configuration.valueset) {
+            this.compareBindings(
+              differential,
+              srcIgId,
+              derivedIgId,
+              derivedDt.bindings,
+              configuration,
+              datatypesMap,
+              valuesetsMap
+            );
+            this.spreadDatatypeBindings(
+              differential.children,
+              differential.bindings
+            );
+          }
           if (
             srcDt.children &&
             srcDt.children.length > 0 &&
@@ -1000,7 +1229,8 @@ let CalculationService = {
               derivedIgId,
               derivedDt.children,
               configuration,
-              datatypesMap
+              datatypesMap,
+              valuesetsMap
             );
           }
         }

@@ -23,8 +23,14 @@ let SegmentService = {
         label: segment["$"].label,
         children: this.extractFields(segment.Fields[0].Field)
       };
-      if(segment.Binding[0].StructureElementBindings && segment.Binding[0].StructureElementBindings[0] && segment.Binding[0].StructureElementBindings[0].StructureElementBinding){
-        result.bindings = this.extractBindings(segment.Binding[0].StructureElementBindings[0].StructureElementBinding)
+      if (
+        segment.Binding && segment.Binding[0].StructureElementBindings &&
+        segment.Binding[0].StructureElementBindings[0] &&
+        segment.Binding[0].StructureElementBindings[0].StructureElementBinding
+      ) {
+        result.bindings = this.extractBindings(
+          segment.Binding[0].StructureElementBindings[0].StructureElementBinding
+        );
       }
     }
     return result;
@@ -38,12 +44,12 @@ let SegmentService = {
     }
     return result;
   },
-  extractBindings(bindings){
+  extractBindings(bindings) {
     let result = [];
-    if(bindings){
+    if (bindings) {
       bindings.forEach(binding => {
-        if(binding.ValuesetBinding && binding.ValuesetBinding[0]){
-          const details = binding.ValuesetBinding[0]["$"]
+        if (binding.ValuesetBinding && binding.ValuesetBinding[0]) {
+          const details = binding.ValuesetBinding[0]["$"];
           const b = {
             strength: details.strength,
             bindingLocation: details.bindingLocation,
@@ -51,15 +57,19 @@ let SegmentService = {
             position: binding["$"].Position1,
             LocationInfoType: binding["$"].LocationInfoType,
             valuesets: this.extractValuesetsFromName(details.name),
-          }
-          result.push(b)
+            versions: this.extractValuesetsFromName(details.version)
+          };
+          result.push(b);
         }
       });
     }
     return result;
   },
-  extractValuesetsFromName(name){
-    const valuesets = name.split(",");
+  extractValuesetsFromName(name) {
+    let valuesets = [];
+    if (name) {
+      valuesets = name.split(",");
+    }
     return valuesets;
   }
 };
