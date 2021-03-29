@@ -23,7 +23,7 @@ let ValuesetService = {
       });
     }
   },
-  extractValueset(valueset) {
+  extractValueset: function(valueset) {
     let result = {};
     if (valueset) {
       result = {
@@ -44,7 +44,7 @@ let ValuesetService = {
     }
     return result;
   },
-  extractCodes(codes) {
+  extractCodes: function(codes) {
     let result = [];
     if (codes && codes[0] && codes[0].Code) {
       codes[0].Code.forEach(code => {
@@ -59,7 +59,7 @@ let ValuesetService = {
     return result;
   },
 
-  compareCodes(src, derived) {
+  compareCodes: function(src, derived) {
     let codes = {
       changed: false,
       list: []
@@ -90,33 +90,174 @@ let ValuesetService = {
       });
     }
     return codes;
-
-    let hasChanged = false;
-    if (src && derived) {
-      if (src.length === derived.length) {
-        src.forEach((code, i) => {
-          if (code.value !== derived[i].value) {
-            hasChanged = true;
-          }
-          if (code.description !== derived[i].description) {
-            hasChanged = true;
-          }
-          if (code.codeSystem !== derived[i].codeSystem) {
-            hasChanged = true;
-          }
-          if (code.usage !== derived[i].usage) {
-            hasChanged = true;
-          }
-          if (code.comment !== derived[i].comment) {
-            hasChanged = true;
-          }
-        });
-      } else {
-        hasChanged = true;
-      }
+  },
+  populateSrcValuesets: function(
+    igId,
+    bindings,
+    configuration,
+    valuesetsMap,
+    context
+  ) {
+    let results = [];
+    if (bindings && configuration.valueset) {
+      bindings.forEach(binding => {
+        let bindingDifferential = {
+          data: {
+            position: binding.position,
+            path: binding.path,
+            bindingLocation: binding.bindingLocation,
+            context: {
+              src: {
+                value: context
+              },
+              derived: {}
+            },
+            // locations: binding.locations,
+            locations: {
+              src: {
+                value: this.extractLocations(binding.locations)
+              },
+              derived: {}
+            },
+            LocationInfoType: binding.LocationInfoType,
+            strength: {
+              src: {
+                value: binding.strength
+              },
+              derived: {}
+            },
+            valuesets: {
+              src: {
+                value: this.extractVSWithVersion(
+                  binding.valuesets,
+                  binding.versions,
+                  valuesetsMap,
+                  igId
+                )
+              },
+              derived: {}
+            },
+            codes: this.buildSrcCodes(
+              binding.valuesets,
+              binding.versions,
+              valuesetsMap,
+              igId
+            )
+          },
+          changed: false
+        };
+        results.push(bindingDifferential);
+      });
     }
 
-    return hasChanged;
+    return results;
+  },
+
+  buildSrcCodes: function(valuesets, versions, valuesetsMap, igId) {
+    let result = {};
+    if (valuesets) {
+      valuesets.forEach((valueset, i) => {
+        if (
+          valuesetsMap[igId][valueset] &&
+          valuesetsMap[igId][valueset][versions[i]]
+        ) {
+          result[valueset] = {
+            src: {
+              value: valuesetsMap[igId][valueset][versions[i]].children
+            },
+            derived: {}
+          };
+        }
+      });
+    }
+    return result;
+  },
+
+  extractLocations: function(locations) {
+    let locs = [];
+    let results = [];
+    if (locations) {
+      locs = locations.split(",");
+      locs.forEach(location => {
+        let loc = location.split(".");
+        location = loc[loc.length - 1];
+        location = parseInt(location);
+        results.push(location);
+      });
+    }
+    return results;
+  },
+  extractVSWithVersion: function(valuesets, versions, valuesetsMap, igId) {
+    let result = [];
+    if (valuesets) {
+      valuesets.forEach((valueset, i) => {
+        result.push({
+          bindingIdentifier: valueset,
+          version: versions[i],
+          codes: this.getCodes(valueset, versions[i], valuesetsMap, igId)
+        });
+      });
+    }
+    return result;
+  },
+  getCodes: function(valueset, version, valuesetsMap, igId) {
+    let result = [];
+    if (
+      valueset &&
+      valuesetsMap[igId][valueset] &&
+      valuesetsMap[igId][valueset][version]
+    ) {
+      result = valuesetsMap[igId][valueset][version].children;
+    }
+
+    return result;
+  },
+  extractBindings: function(bindings, currentPath) {
+    let result = [];
+    if (bindings) {
+      bindings.forEach(binding => {
+        const path =
+          currentPath === ""
+            ? binding["$"].Position1
+            : `${currentPath}.${binding["$"].Position1}`;
+        if (binding.ValuesetBinding && binding.ValuesetBinding[0]) {
+          const details = binding.ValuesetBinding[0]["$"];
+
+          const b = {
+            strength: details.strength,
+            bindingLocation: details.bindingLocation,
+            locations: details.locations,
+            position: binding["$"].Position1,
+            path,
+            LocationInfoType: binding["$"].LocationInfoType,
+            valuesets: this.extractValuesetsFromName(details.name),
+            versions: this.extractValuesetsFromName(details.version)
+          };
+          result.push(b);
+        }
+        if (
+          binding.StructureElementBindings &&
+          binding.StructureElementBindings[0] &&
+          binding.StructureElementBindings[0].StructureElementBinding
+        ) {
+          result.push.apply(
+            result,
+            this.extractBindings(
+              binding.StructureElementBindings[0].StructureElementBinding,
+              path
+            )
+          );
+        }
+      });
+    }
+    return result;
+  },
+  extractValuesetsFromName: function(name) {
+    let valuesets = [];
+    if (name) {
+      valuesets = name.split(",");
+    }
+    return valuesets;
   }
 };
 

@@ -1,3 +1,4 @@
+const ValuesetService = require("./valuesetService");
 const SegmentService = require("./segmentService");
 
 let DatatypeService = {
@@ -16,7 +17,7 @@ let DatatypeService = {
       });
     }
   },
-  extractDatatype(datatype) {
+  extractDatatype: function(datatype) {
     let result = {};
     if (datatype) {
       result = {
@@ -32,15 +33,15 @@ let DatatypeService = {
         datatype.Binding[0].StructureElementBindings[0] &&
         datatype.Binding[0].StructureElementBindings[0].StructureElementBinding
       ) {
-        result.bindings = SegmentService.extractBindings(
-          datatype.Binding[0].StructureElementBindings[0].StructureElementBinding
+        result.bindings = ValuesetService.extractBindings(
+          datatype.Binding[0].StructureElementBindings[0].StructureElementBinding, ""
         );
       }
 
     }
     return result;
   },
-  extractComponents(components) {
+  extractComponents: function(components) {
     let result = [];
     if (components) {
       components.forEach(component => {
@@ -48,7 +49,78 @@ let DatatypeService = {
       });
     }
     return result;
-  }
+  },
+  populateSrcDatatypes: function(
+    igId,
+    components,
+    configuration,
+    path,
+    datatypesMap,
+    level,
+    valuesetsMap
+  ) {
+    let results = [];
+    components.forEach(component => {
+      let currentPath = path;
+      currentPath += `.${component.position}`;
+      let componentDifferential = {
+        data: {
+          name: component.name,
+          position: component.position,
+          type: level === 1 ? "component" : "subcomponent",
+          path: currentPath
+        },
+        changed: false
+      };
+
+      if (configuration.usage) {
+        componentDifferential.data.usage = {
+          src: {
+            value: component.usage
+          },
+          derived: {}
+        };
+      }
+      if (configuration.datatype) {
+        componentDifferential.data.datatype = {
+          src: {
+            value: component.datatype
+          },
+          derived: {}
+        };
+      }
+      if (
+        datatypesMap[igId][component.datatype].children &&
+        datatypesMap[igId][component.datatype].children.length > 0
+      ) {
+        componentDifferential.children = this.populateSrcDatatypes(
+          igId,
+          datatypesMap[igId][component.datatype].children,
+          configuration,
+          currentPath,
+          datatypesMap,
+          2,
+          valuesetsMap
+        );
+      }
+      if (configuration.valueset) {
+        componentDifferential.bindings = ValuesetService.populateSrcValuesets(
+          igId,
+          datatypesMap[igId][component.datatype].bindings,
+          configuration,
+          valuesetsMap,
+          "datatype_component",
+        );
+      }
+
+      results.push(componentDifferential);
+    });
+    results.sort(function(a, b) {
+      return a.data.position - b.data.position;
+    });
+    return results;
+  },
+
 };
 
 module.exports = DatatypeService;

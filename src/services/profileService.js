@@ -1,91 +1,232 @@
 const ComparisonService = require("./comparisonService");
 const SegmentService = require("./segmentService");
+const ValuesetService = require("./valuesetService");
 
 let ProfileService = {
-  populateSourceProfile(source) {
-    let result = {
-      ig: source.ig,
-      profiles: {}
-    };
-    source.profiles.forEach(profile => {
-      result.profiles[profile["$"].id] = {
-        name: profile["$"].name,
-        description: profile["$"].description,
-        title: profile["$"].title,
-        profile: this.serializeProfile(profile.ConformanceProfile)
-      };
-    });
-    return result;
-  },
-  serializeProfile(profile) {
-    let result = {};
-    if (profile[0]) {
-      profile = profile[0];
-
-      if (profile.SegmentRef && profile.SegmentRef.length > 0) {
-        result.segRefs = this.serializeSegRefs(profile.SegmentRef);
+  populateProfileChildren: function(profile) {
+    let res = [];
+    if (profile) {
+      if (profile.SegmentRef) {
+        res.push(...this.populateSegRefs(profile.SegmentRef));
       }
-      if (profile.Group && profile.Group.length > 0) {
-        result.groups = this.serializeGroups(profile.Group);
-      }
-
-      if (
-        profile.Binding && profile.Binding[0].StructureElementBindings &&
-        profile.Binding[0].StructureElementBindings[0] &&
-        profile.Binding[0].StructureElementBindings[0].StructureElementBinding
-      ) {
-        result.bindings = SegmentService.extractBindings(
-          profile.Binding[0].StructureElementBindings[0].StructureElementBinding
-        );
+      if (profile.Group) {
+        res.push(...this.populateGroups(profile.Group));
       }
     }
-    return result;
+    res.sort(function(a, b) {
+      return a.data.position - b.data.position;
+    });
+    return res;
   },
-  serializeGroups(groups) {
-    let result = {};
+  populateSegRefs: function(segRefs) {
+    let res = [];
+    segRefs.forEach(segRef => {
+      res.push({
+        data: {
+          position: segRef["$"].position,
+          ref: segRef["$"].ref,
+          idSeg: segRef["$"].iDSeg,
+          label: { src: { value: segRef["$"].label } },
+          description: segRef["$"].description,
+          usage: {
+            src: { value: segRef["$"].usage }
+          },
+          cardinality: {
+            src: { value: this.createCard(segRef["$"].min, segRef["$"].max) }
+          },
+          min: {
+            src: { value: segRef["$"].min }
+          },
+          max: {
+            src: { value: segRef["$"].max }
+          },
+          type: "segmentRef"
+        },
+        changed: false
+      });
+    });
+    return res;
+  },
+  populateGroups: function(groups) {
+    let res = [];
     if (groups) {
+      groups = JSON.parse(JSON.stringify(groups));
+
       groups.forEach(group => {
         const length = group.SegmentRef.length;
         const usage = group.SegmentRef[0]["$"].usage;
+        group["$"].usage = usage;
         group.SegmentRef.splice(length - 1, 1);
         group.SegmentRef.splice(0, 1);
-
-        result[group["$"].position] = {
-          name: group["$"].name,
-          cardinality: this.createCard(group["$"].min, group["$"].max),
-          min: group["$"].min,
-          max: group["$"].max,
-          usage: usage,
-          position: group["$"].position,
-          segRefs: this.serializeSegRefs(group.SegmentRef),
-          groups: this.serializeGroups(group.Group)
-        };
+        res.push({
+          data: {
+            position: group["$"].position,
+            name: group["$"].name,
+            usage: {
+              src: { value: group["$"].usage }
+            },
+            cardinality: {
+              src: { value: this.createCard(group["$"].min, group["$"].max) }
+            },
+            min: {
+              src: { value: group["$"].min }
+            },
+            max: {
+              src: { value: group["$"].max }
+            },
+            type: "group"
+          },
+          changed: false,
+          children: this.populateProfileChildren(group)
+        });
       });
     }
-
-    return result;
+    return res;
   },
-  serializeSegRefs(refs) {
-    let result = {};
-    if (refs) {
-      refs.forEach(ref => {
-        result[ref["$"].position] = {
-          ref: ref["$"].ref,
-          description: ref["$"].description,
-          usage: ref["$"].usage,
-          iDSeg: ref["$"].iDSeg,
-          label: ref["$"].label,
-          cardinality: this.createCard(ref["$"].min, ref["$"].max),
+  populateProfileSegments: function(
+    profile,
+    currentPath,
+    segmentsMap,
+    configuration,
+    igId,
+    datatypesMap,
+    valuesetsMap
+  ) {
+    let res = [];
+    if (profile) {
+      if (profile.SegmentRef) {
+        res.push(
+          ...this.extractSegmentFromSegRefs(
+            profile.SegmentRef,
+            currentPath,
+            segmentsMap,
+            configuration,
+            igId,
+            datatypesMap,
+            valuesetsMap
+          )
+        );
+      }
+      if (profile.Group) {
+        res.push(
+          ...this.extractSegmentFromGroups(
+            profile.Group,
+            currentPath,
+            segmentsMap,
+            configuration,
+            igId,
+            datatypesMap,
+            valuesetsMap
+          )
+        );
+      }
+    }
 
-          min: ref["$"].min,
-          max: ref["$"].max,
-          position: ref["$"].position
-        };
+    return res;
+  },
+  extractSegmentFromGroups: function(
+    groups,
+    currentPath,
+    segmentsMap,
+    configuration,
+    igId,
+    datatypesMap,
+    valuesetsMap
+  ) {
+    let res = [];
+    if (groups) {
+      groups = JSON.parse(JSON.stringify(groups));
+
+      groups.forEach(group => {
+        if (!group["$"].usage) {
+          const length = group.SegmentRef.length;
+          const usage = group.SegmentRef[0]["$"].usage;
+          group["$"].usage = usage;
+          group.SegmentRef.splice(length - 1, 1);
+          group.SegmentRef.splice(0, 1);
+        }
+
+        let path = currentPath;
+        if (path == "") {
+          path += group["$"].position;
+        } else {
+          path += `.${group["$"].position}`;
+        }
+
+        res.push(
+          ...this.populateProfileSegments(
+            group,
+            path,
+            segmentsMap,
+            configuration,
+            igId,
+            datatypesMap,
+            valuesetsMap
+          )
+        );
       });
     }
-    return result;
+    return res;
   },
-  createCard(min, max) {
+  extractSegmentFromSegRefs: function(
+    segRefs,
+    currentPath,
+    segmentsMap,
+    configuration,
+    igId,
+    datatypesMap,
+    valuesetsMap
+  ) {
+    let res = [];
+    segRefs.forEach(segRef => {
+      let path = currentPath;
+      if (path == "") {
+        path += segRef["$"].position;
+      } else {
+        path += `.${segRef["$"].position}`;
+      }
+
+      res.push({
+        data: {
+          position: segRef["$"].position,
+          name: segRef["$"].name,
+          path: path,
+          ref: segRef["$"].ref,
+          idSeg: segRef["$"].iDSeg,
+          label: {
+            src: { value: segRef["$"].label },
+            derived: {}
+          },
+          description: {
+            src: { value: segRef["$"].description },
+            derived: {}
+          }
+        },
+        changed: false,
+        children: [
+          ...SegmentService.populateSrcFields(
+            igId,
+            segmentsMap[igId][segRef["$"].iDSeg].children,
+            configuration,
+            path,
+            datatypesMap,
+            valuesetsMap
+          )
+        ],
+        bindings: [
+          ...ValuesetService.populateSrcValuesets(
+            igId,
+            segmentsMap[igId][segRef["$"].iDSeg].bindings,
+            configuration,
+            valuesetsMap,
+            "segment"
+          )
+        ]
+      });
+    });
+    return res;
+  },
+  createCard: function(min, max) {
     return `${min}..${max}`;
   }
 };
