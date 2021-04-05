@@ -309,7 +309,6 @@ let CalculationService = {
       bindings.forEach(binding => {
         // binding.data.context = context;
         for (const igId in newBinding.data.valuesets.derived) {
-          console.log(binding.data.context.derived[igId], context)
           binding.data.locations.derived[igId] =
             newBinding.data.locations.derived[igId];
           binding.data.strength.derived[igId] =
@@ -326,6 +325,7 @@ let CalculationService = {
             binding.data.codes.derived[igId] =
               newBinding.data.codes.derived[igId];
           }
+          binding.changed = true
         }
       });
       // console.log(binding.data.valuesets.derived['60622b5aaa36ff307434b111'])
