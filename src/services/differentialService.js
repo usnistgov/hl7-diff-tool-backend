@@ -26,11 +26,6 @@ let DifferentialService = {
         ) {
           const section = result.Document.Section[0].Section[index];
           if (section["$"].type === "CONFORMANCEPROFILEREGISTRY") {
-            // sourceProfile = {
-            //   ig: result.Document.Metadata[0]["$"].title,
-            //   id: result.Document["$"].id,
-            //   profiles: section.Section
-            // };
             sourceProfile.profiles = section.Section;
           }
 
@@ -66,11 +61,6 @@ let DifferentialService = {
               const section = result.Document.Section[0].Section[index];
 
               if (section["$"].type === "CONFORMANCEPROFILEREGISTRY") {
-                // derivedIgs.push({
-                //   ig: result.Document.Metadata[0]["$"].title,
-                //   id: result.Document["$"].id,
-                //   profiles: section.Section
-                // });
                 derivedIg.profiles = section.Section;
               }
               if (section["$"].type === "SEGMENTREGISTRY") {

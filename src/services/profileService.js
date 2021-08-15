@@ -25,6 +25,7 @@ let ProfileService = {
         data: {
           position: segRef["$"].position,
           ref: segRef["$"].ref,
+          name: segRef["$"].ref,
           idSeg: segRef["$"].iDSeg,
           label: { src: { value: segRef["$"].label } },
           description: segRef["$"].description,
@@ -189,9 +190,9 @@ let ProfileService = {
       res.push({
         data: {
           position: segRef["$"].position,
-          name: segRef["$"].name,
           path: path,
           ref: segRef["$"].ref,
+          name: segRef["$"].ref,
           idSeg: segRef["$"].iDSeg,
           label: {
             src: { value: segRef["$"].label },
@@ -213,6 +214,7 @@ let ProfileService = {
             valuesetsMap
           )
         ],
+        fieldReasons: segmentsMap[igId][segRef["$"].iDSeg].fieldReasons,
         bindings: [
           ...ValuesetService.populateSrcValuesets(
             igId,

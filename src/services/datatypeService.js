@@ -28,6 +28,21 @@ let DatatypeService = {
         label: datatype["$"].label,
         children: this.extractComponents(datatype.Component)
       };
+      if (datatype.Reasons && datatype.Reasons[0] && datatype.Reasons[0].Reason) {
+        let reasonsMap = {};
+        const reasonsForChange = datatype.Reasons[0].Reason;
+        reasonsForChange.forEach(reason => {
+          reason = reason["$"];
+          let splits = reason.Location.split(".");
+          splits.shift();
+          splits = splits.join(".");
+          if (!reasonsMap[splits]) {
+            reasonsMap[splits] = {};
+          }
+          reasonsMap[splits][reason.Property.toLowerCase()] = reason.Text;
+        });
+        result.componentReasons = reasonsMap;
+      }
       if (
         datatype.Binding && datatype.Binding[0].StructureElementBindings &&
         datatype.Binding[0].StructureElementBindings[0] &&

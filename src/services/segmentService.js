@@ -1,8 +1,8 @@
 const DatatypeService = require("./datatypeService");
 const ValuesetService = require("./valuesetService");
+const ComparisonService = require("./comparisonService");
 
 let SegmentService = {
-
   populateSegmentsMap: function(segmentsMap, igId, segments) {
     if (segments) {
       if (!segmentsMap[igId]) {
@@ -27,6 +27,21 @@ let SegmentService = {
         label: segment["$"].label,
         children: this.extractFields(segment.Fields[0].Field)
       };
+      if (segment.Reasons && segment.Reasons[0] && segment.Reasons[0].Reason) {
+        let reasonsMap = {};
+        const reasonsForChange = segment.Reasons[0].Reason;
+        reasonsForChange.forEach(reason => {
+          reason = reason["$"];
+          let splits = reason.Location.split(".");
+          splits.shift();
+          splits = splits.join(".");
+          if (!reasonsMap[splits]) {
+            reasonsMap[splits] = {};
+          }
+          reasonsMap[splits][reason.Property.toLowerCase()] = reason.Text;
+        });
+        result.fieldReasons = reasonsMap;
+      }
       if (
         segment.Binding &&
         segment.Binding[0].StructureElementBindings &&
@@ -38,7 +53,6 @@ let SegmentService = {
             .StructureElementBinding,
           ""
         );
-
       }
     }
     return result;
@@ -52,7 +66,6 @@ let SegmentService = {
     }
     return result;
   },
-
 
   populateSrcFields: function(
     igId,
@@ -80,6 +93,16 @@ let SegmentService = {
         fieldDifferential.data.usage = {
           src: {
             value: field.usage
+          },
+          derived: {}
+        };
+      }
+      if (configuration.cardinality) {
+        const card = ComparisonService.createCard(field.min, field.max);
+
+        fieldDifferential.data.cardinality = {
+          src: {
+            value: card
           },
           derived: {}
         };
@@ -121,7 +144,7 @@ let SegmentService = {
       results.push(fieldDifferential);
     });
     return results;
-  },
+  }
 };
 
 module.exports = SegmentService;
