@@ -5,7 +5,7 @@ let cookieParser = require('cookie-parser');
 let bodyParser = require('body-parser');
 let cors = require("cors");
 let helmet = require("helmet");
-let Utils = require('./src/services/Utils');
+let Utils = require('./src/services/utils');
 const fileUpload = require('express-fileupload');
 
 
