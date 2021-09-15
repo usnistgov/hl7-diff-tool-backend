@@ -21,11 +21,12 @@ app.use(logger('dev'));
 
 
 
-app.use(bodyParser.json()); // Configures bodyParser to accept JSON
+app.use(bodyParser.json({limit: '10mb',})); // Configures bodyParser to accept JSON
 app.use(bodyParser.urlencoded({
     extended: true,
     limit: '10mb',
 }));
+console.log("Parser")
 
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
