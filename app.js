@@ -40,7 +40,7 @@ app.options('*', cors());
 
 
 //Routing
-app.use('/api/differential', differentialRoutes);
+app.use('/differential', differentialRoutes);
 
 // if no routes found, catch 404 and return error response
 app.use(function(req, res, next) {
