@@ -23,7 +23,8 @@ app.use(logger('dev'));
 
 app.use(bodyParser.json()); // Configures bodyParser to accept JSON
 app.use(bodyParser.urlencoded({
-    extended: true
+    extended: true,
+    limit: '10mb',
 }));
 
 app.use(cookieParser());
