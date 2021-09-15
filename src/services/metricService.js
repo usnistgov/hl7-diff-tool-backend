@@ -7,7 +7,10 @@ let MetricService = {
     globalPath,
     srcValue,
     derivedValue
-  ){
+  ) {
+    if (globalPath === "1.19.3") {
+      console.log(element);
+    }
     if (path && element) {
       if (!originalProfile.summaries) {
         originalProfile.summaries = {};
@@ -27,12 +30,13 @@ let MetricService = {
       }
 
       if (!originalProfile.summaries.usageChangesOverview[path][originalId]) {
-        originalProfile.summaries.usageChangesOverview[path][originalId] = derivedValue;
+        originalProfile.summaries.usageChangesOverview[path][
+          originalId
+        ] = derivedValue;
       }
       if (!originalProfile.summaries.usageChangesOverview[path].src) {
         originalProfile.summaries.usageChangesOverview[path].src = srcValue;
       }
-
     }
   },
   updateChangesTable(
@@ -71,8 +75,6 @@ let MetricService = {
       originalProfile.summaries.changesTable[originalId][path].total++;
       originalProfile.summaries.changesTable[originalId][path][option]++;
 
-      
-
       //Summaries overview
       if (!originalProfile.summaries.overview) {
         originalProfile.summaries.overview = {};
@@ -88,8 +90,6 @@ let MetricService = {
         originalProfile.summaries.overview[originalId].total = 0;
       }
       originalProfile.summaries.overview[originalId].total++;
-
-
 
       //Total
       if (!originalProfile.summaries.totalChangesTable) {
@@ -143,7 +143,7 @@ let MetricService = {
       globalPath,
       srcUsage,
       derivedUsage
-    )
+    );
 
     if (!originalProfile.overview) {
       originalProfile.overview = {
@@ -608,7 +608,7 @@ let MetricService = {
       "datatype",
       globalPath,
       srcDatatype,
-      derivedDatatype,
+      derivedDatatype
     );
     if (!originalProfile.compliance) {
       originalProfile.compliance = {};

@@ -1123,6 +1123,10 @@ let CalculationService = {
             if (componentDifferential) {
               componentDifferential.changed = true;
               componentDifferential.data.changed = true;
+              derivedComponent.type = "subcomponent";
+            } else {
+              derivedComponent.type = "component";
+
             }
             differential.changed = true;
             differential.data.changed = true;
@@ -1137,14 +1141,14 @@ let CalculationService = {
             }
             path += `.${derivedComponent.position}`;
             globalPath += `.${derivedComponent.position}`;
-
+            
             const compliance = MetricService.updateUsageMetrics(
               derivedIgId,
               originalProfile,
               differential.data.usage.src.value,
               derivedComponent.usage,
               path,
-              element,
+              derivedComponent,
               globalPath
             );
             differential.data.usage.derived[derivedIgId] = {
@@ -1332,7 +1336,6 @@ let CalculationService = {
           let originalSegRef = originalProfile.children.find(
             p => p.data.position === segRef["$"].position
           );
-            console.log(originalSegRef)
           ComparisonService.compare(
             originalId,
             originalProfile,
