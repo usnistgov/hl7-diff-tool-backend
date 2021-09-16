@@ -51,6 +51,7 @@ app.use(function(req, res, next) {
       "message": "No such endpoint exists"
     }
   };
+  console.log(response)
 
   return res.error(response);
 });
