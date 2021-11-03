@@ -661,6 +661,7 @@ let CalculationService = {
     valuesetsMap
   ) {
     if (srcSegment && derivedSegment) {
+      console.log(derivedSegment)
       this.compareFields(
         originalProfile,
         sourceSegment,

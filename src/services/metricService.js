@@ -8,9 +8,6 @@ let MetricService = {
     srcValue,
     derivedValue
   ) {
-    if (globalPath === "1.19.3") {
-      console.log(element);
-    }
     if (path && element) {
       if (!originalProfile.summaries) {
         originalProfile.summaries = {};
@@ -125,6 +122,7 @@ let MetricService = {
     element,
     globalPath
   ) {
+    let result;
     this.updateChangesTable(
       originalId,
       originalProfile,
@@ -244,6 +242,7 @@ let MetricService = {
         total: 0
       };
     }
+
     if (srcUsage.startsWith("C")) {
       if (derivedUsage === "R") {
         originalProfile.compliance[originalId].total.info++;
@@ -254,8 +253,7 @@ let MetricService = {
         originalProfile.totalPercentage.usage.cr++;
         originalProfile.percentage[originalId].usage.total++;
         originalProfile.percentage[originalId].usage.cr++;
-
-        return "info";
+        result = "info";
       }
       if (derivedUsage === "RE") {
         originalProfile.compliance[originalId].total.info++;
@@ -266,7 +264,7 @@ let MetricService = {
         originalProfile.totalPercentage.usage.cre++;
         originalProfile.percentage[originalId].usage.total++;
         originalProfile.percentage[originalId].usage.cre++;
-        return "info";
+        result = "info";
       }
       if (derivedUsage === "O") {
         originalProfile.compliance[originalId].total.warning++;
@@ -277,7 +275,7 @@ let MetricService = {
         originalProfile.totalPercentage.usage.co++;
         originalProfile.percentage[originalId].usage.total++;
         originalProfile.percentage[originalId].usage.co++;
-        return "warning";
+        result = "warning";
       }
       if (derivedUsage === "X") {
         originalProfile.compliance[originalId].total.error++;
@@ -288,7 +286,7 @@ let MetricService = {
         originalProfile.totalPercentage.usage.cx++;
         originalProfile.percentage[originalId].usage.total++;
         originalProfile.percentage[originalId].usage.cx++;
-        return "error";
+        result = "error";
       }
     }
     switch (srcUsage) {
@@ -302,7 +300,7 @@ let MetricService = {
           originalProfile.totalPercentage.usage.rc++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.rc++;
-          return "warning";
+          result = "warning";
         }
         if (derivedUsage === "RE") {
           originalProfile.compliance[originalId].total.warning++;
@@ -313,7 +311,7 @@ let MetricService = {
           originalProfile.totalPercentage.usage.rre++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.rre++;
-          return "warning";
+          result = "warning";
         }
         if (derivedUsage === "O") {
           originalProfile.compliance[originalId].total.error++;
@@ -324,7 +322,7 @@ let MetricService = {
           originalProfile.totalPercentage.usage.ro++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.ro++;
-          return "error";
+          result = "error";
         }
         if (derivedUsage === "X") {
           originalProfile.compliance[originalId].total.error++;
@@ -335,7 +333,7 @@ let MetricService = {
           originalProfile.totalPercentage.usage.rx++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.rx++;
-          return "error";
+          result = "error";
         }
         break;
       case "RE":
@@ -348,7 +346,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.rec++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.rec++;
-          return "warning";
+          result = "warning";
+          break;
         }
         if (derivedUsage === "R") {
           originalProfile.compliance[originalId].total.info++;
@@ -359,7 +358,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.rer++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.rer++;
-          return "info";
+          result = "info";
+          break;
         }
         if (derivedUsage === "O") {
           originalProfile.compliance[originalId].total.error++;
@@ -370,7 +370,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.reo++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.reo++;
-          return "error";
+          result = "error";
+          break;
         }
         if (derivedUsage === "X") {
           originalProfile.compliance[originalId].total.error++;
@@ -381,7 +382,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.rex++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.rex++;
-          return "error";
+          result = "error";
+          break;
         }
         break;
       case "O":
@@ -394,7 +396,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.oc++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.oc++;
-          return "info";
+          result = "info";
+          break;
         }
         if (derivedUsage === "R") {
           originalProfile.compliance[originalId].total.info++;
@@ -405,7 +408,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.or++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.or++;
-          return "info";
+          result = "info";
+          break;
         }
         if (derivedUsage === "RE") {
           originalProfile.compliance[originalId].total.info++;
@@ -416,7 +420,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.ore++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.ore++;
-          return "info";
+          result = "info";
+          break;
         }
         if (derivedUsage === "X") {
           originalProfile.compliance[originalId].total.warning++;
@@ -427,7 +432,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.ox++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.ox++;
-          return "warning";
+          result = "warning";
+          break;
         }
         break;
       case "X":
@@ -440,7 +446,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.xc++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.xc++;
-          return "error";
+          result = "error";
+          break;
         }
         if (derivedUsage === "R") {
           originalProfile.compliance[originalId].total.error++;
@@ -451,7 +458,8 @@ let MetricService = {
           originalProfile.totalPercentage.xr++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.xr++;
-          return "error";
+          result = "error";
+          break;
         }
         if (derivedUsage === "RE") {
           originalProfile.compliance[originalId].total.error++;
@@ -462,7 +470,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.xre++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.xre++;
-          return "error";
+          result = "error";
+          break;
         }
         if (derivedUsage === "O") {
           originalProfile.compliance[originalId].total.error++;
@@ -473,10 +482,37 @@ let MetricService = {
           originalProfile.totalPercentage.usage.xo++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.xo++;
-          return "error";
+          result = "error";
+          break;
         }
         break;
     }
+
+    if (result === "error") {
+      //Compliance error table
+      if (!originalProfile.summaries.complianceErrorTable) {
+        originalProfile.summaries.complianceErrorTable = {};
+      }
+
+      if (!originalProfile.summaries.complianceErrorTable[path]) {
+        originalProfile.summaries.complianceErrorTable[path] = {
+          type: element.type,
+          name: element.name,
+          globalPath,
+          path
+        };
+      }
+
+      if (!originalProfile.summaries.complianceErrorTable[path][originalId]) {
+        originalProfile.summaries.complianceErrorTable[path][
+          originalId
+        ] = derivedUsage;
+      }
+      if (!originalProfile.summaries.complianceErrorTable[path].src) {
+        originalProfile.summaries.complianceErrorTable[path].src = srcUsage;
+      }
+    }
+    return result;
   },
   updateCardinalityMetrics(
     originalId,
