@@ -33,12 +33,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 //Helmet, To protect against different kind of vulnerabilities (optional)
 app.use(helmet());
-
 //CORS Policy (optional)
 app.use(cors());
 app.options('*', cors());
 
-
+app.use(function (req, res, next) {
+  res.setHeader('X-XSS-Protection', '1');
+  next();
+});
 //Routing
 app.use('/api/differential', differentialRoutes);
 
@@ -55,6 +57,8 @@ app.use(function(req, res, next) {
 
   return res.error(response);
 });
+
+
 
 // error handler in case of parsing/other errors not handled by controllers
 // app.use(function(err, req, res, next) {
