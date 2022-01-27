@@ -34,6 +34,7 @@ let CalculationService = {
         id: sourceProfile.id
       },
       derivedIgs: [],
+      derivedIgsMap: {},
       configuration: [
         ...configRes,
         {
@@ -117,7 +118,7 @@ let CalculationService = {
         const profile = derivedIg.profiles[0];
         const confProfile = profile.ConformanceProfile[0];
         const originalProfileId = confProfile["$"].origin;
-
+        results.derivedIgsMap[derivedIg.id] = derivedIg.ig
         results.derivedIgs.push({
           title: derivedIg.ig,
           id: derivedIg.id,
