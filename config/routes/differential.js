@@ -9,8 +9,9 @@ router
   .post('/', function(req, res, next) {
     differentialController.calculateDifferential(req, res);
   })
-//   .get('/api-two', policies.authorizedRequest, function(req, res, next) {
-//     //api two routing here
-//   });
 
+  router
+  .post('/verification', function(req, res, next) {
+    differentialController.calculateVerificationDifferential(req, res);
+  })
 module.exports = router;

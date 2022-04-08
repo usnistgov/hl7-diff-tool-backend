@@ -1,17 +1,11 @@
-let Utils = require('../services/utils');
-let DifferentialService = require('../services/differentialService');
+let Utils = require("../services/utils");
+let DifferentialService = require("../services/differentialService");
 
 module.exports = {
-
   calculateDifferential: function(req, res) {
-    DifferentialService.calculateDifferential(req,res);
-
-    // ModelOne.sampleApiOne(input, function(err, result) {
-    //   if (!Utils.isEmpty(err)) {
-    //     return res.error(err);
-    //   }
-
-    //   return res.success(result);
-    // });
+    DifferentialService.calculateDifferential(req, res);
+  },
+  calculateVerificationDifferential: function(req, res) {
+    DifferentialService.calculateVerificationDifferential(req, res);
   }
 };

@@ -1,16 +1,16 @@
-const ComparisonService = require("./comparisonService");
+const ComparisonService = require("../comparisonService");
 const SegmentService = require("./segmentService");
 const ValuesetService = require("./valuesetService");
 
 let ProfileService = {
-  populateProfileChildren: function(profile) {
+  populateProfileChildren: function(profile, segmentsMap, igId) {
     let res = [];
     if (profile) {
-      if (profile.SegmentRef) {
-        res.push(...this.populateSegRefs(profile.SegmentRef));
+      if (profile.Segment) {
+        res.push(...this.populateSegRefs(profile.Segment, segmentsMap, igId));
       }
       if (profile.Group) {
-        res.push(...this.populateGroups(profile.Group));
+        res.push(...this.populateGroups(profile.Group, segmentsMap, igId));
       }
     }
     res.sort(function(a, b) {
@@ -18,28 +18,29 @@ let ProfileService = {
     });
     return res;
   },
-  populateSegRefs: function(segRefs) {
+  populateSegRefs: function(segRefs, segmentsMap, igId) {
     let res = [];
     segRefs.forEach(segRef => {
+      const seg = segmentsMap[igId][segRef["$"].Ref];
       res.push({
         data: {
           position: segRef["$"].position,
-          ref: segRef["$"].ref,
-          name: segRef["$"].ref,
-          idSeg: segRef["$"].iDSeg,
-          label: { src: { value: segRef["$"].label } },
-          description: segRef["$"].description,
+          ref: segRef["$"].Ref,
+          name: seg.name,
+          idSeg: segRef["$"].Ref,
+          label: { src: { value: seg.label } },
+          description: seg.description,
           usage: {
-            src: { value: segRef["$"].usage }
+            src: { value: segRef["$"].Usage }
           },
           cardinality: {
-            src: { value: this.createCard(segRef["$"].min, segRef["$"].max) }
+            src: { value: this.createCard(segRef["$"].Min, segRef["$"].Max) }
           },
           min: {
-            src: { value: segRef["$"].min }
+            src: { value: segRef["$"].Min }
           },
           max: {
-            src: { value: segRef["$"].max }
+            src: { value: segRef["$"].Max }
           },
           type: "segmentRef"
         },
@@ -48,37 +49,33 @@ let ProfileService = {
     });
     return res;
   },
-  populateGroups: function(groups) {
+  populateGroups: function(groups, segmentsMap, igId) {
     let res = [];
     if (groups) {
       groups = JSON.parse(JSON.stringify(groups));
 
       groups.forEach(group => {
-        const length = group.SegmentRef.length;
-        const usage = group.SegmentRef[0]["$"].usage;
-        group["$"].usage = usage;
-        group.SegmentRef.splice(length - 1, 1);
-        group.SegmentRef.splice(0, 1);
+    
         res.push({
           data: {
             position: group["$"].position,
-            name: group["$"].name,
+            name: group["$"].Name,
             usage: {
-              src: { value: group["$"].usage }
+              src: { value: group["$"].Usage }
             },
             cardinality: {
-              src: { value: this.createCard(group["$"].min, group["$"].max) }
+              src: { value: this.createCard(group["$"].Min, group["$"].Max) }
             },
             min: {
-              src: { value: group["$"].min }
+              src: { value: group["$"].Min }
             },
             max: {
-              src: { value: group["$"].max }
+              src: { value: group["$"].Max }
             },
             type: "group"
           },
           changed: false,
-          children: this.populateProfileChildren(group)
+          children: this.populateProfileChildren(group, segmentsMap, igId)
         });
       });
     }
@@ -95,10 +92,10 @@ let ProfileService = {
   ) {
     let res = [];
     if (profile) {
-      if (profile.SegmentRef) {
+      if (profile.Segment) {
         res.push(
           ...this.extractSegmentFromSegRefs(
-            profile.SegmentRef,
+            profile.Segment,
             currentPath,
             segmentsMap,
             configuration,
@@ -139,13 +136,6 @@ let ProfileService = {
       groups = JSON.parse(JSON.stringify(groups));
 
       groups.forEach(group => {
-        if (!group["$"].usage) {
-          const length = group.SegmentRef.length;
-          const usage = group.SegmentRef[0]["$"].usage;
-          group["$"].usage = usage;
-          group.SegmentRef.splice(length - 1, 1);
-          group.SegmentRef.splice(0, 1);
-        }
 
         let path = currentPath;
         if (path == "") {
@@ -179,6 +169,7 @@ let ProfileService = {
     valuesetsMap
   ) {
     let res = [];
+
     segRefs.forEach(segRef => {
       let path = currentPath;
       if (path == "") {
@@ -186,20 +177,18 @@ let ProfileService = {
       } else {
         path += `.${segRef["$"].position}`;
       }
-
       res.push({
         data: {
           position: segRef["$"].position,
           path: path,
-          ref: segRef["$"].ref,
-          name: segRef["$"].ref,
-          idSeg: segRef["$"].iDSeg,
+          ref: segRef["$"].Ref,
+          name: segmentsMap[igId][segRef["$"].Ref].name,
           label: {
-            src: { value: segRef["$"].label },
+            src: { value: segmentsMap[igId][segRef["$"].Ref].label },
             derived: {}
           },
           description: {
-            src: { value: segRef["$"].description },
+            src: { value: segmentsMap[igId][segRef["$"].Ref].description },
             derived: {}
           }
         },
@@ -207,23 +196,24 @@ let ProfileService = {
         children: [
           ...SegmentService.populateSrcFields(
             igId,
-            segmentsMap[igId][segRef["$"].iDSeg].children,
+            segmentsMap[igId][segRef["$"].Ref].children,
             configuration,
             path,
             datatypesMap,
             valuesetsMap
           )
         ],
-        fieldReasons: segmentsMap[igId][segRef["$"].iDSeg].fieldReasons,
-        bindings: [
-          ...ValuesetService.populateSrcValuesets(
-            igId,
-            segmentsMap[igId][segRef["$"].iDSeg].bindings,
-            configuration,
-            valuesetsMap,
-            "segment"
-          )
-        ]
+        //TODO: remove comment
+        // fieldReasons: segmentsMap[igId][segRef["$"].iDSeg].fieldReasons,
+        // bindings: [
+        //   ...ValuesetService.populateSrcValuesets(
+        //     igId,
+        //     segmentsMap[igId][segRef["$"].iDSeg].bindings,
+        //     configuration,
+        //     valuesetsMap,
+        //     "segment"
+        //   )
+        // ]
       });
     });
     return res;

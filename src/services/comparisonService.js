@@ -22,10 +22,24 @@ let ComparisonService = {
     }
 
     if (configuration.usage) {
+      if (!original.data.consequential) {
+        original.data.consequential = {
+          src: false,
+          derived: {}
+        };
+      }
+      if(derived.usage === "RE" || derived.usage === "R"){
+        original.data.consequential.derived[originalId] = true;
+        original.data.consequential.src = true;
+      }
       if (original.data.usage.src.value !== derived.usage) {
+      
         if (!original.data.usage.derived) {
           original.data.usage.derived = {};
         }
+        original.changed = true;
+        original.data.changed = true;
+
         const compliance = MetricService.updateUsageMetrics(
           originalId,
           originalProfile,
@@ -33,13 +47,14 @@ let ComparisonService = {
           derived.usage,
           original.data.position,
           original.data,
-          original.data.position,
+          original.data.position
         );
         original.data.usage.derived[originalId] = {
           value: derived.usage,
           reason: "",
           compliance
         };
+      } else {
       }
     }
     if (configuration.cardinality) {
@@ -51,6 +66,9 @@ let ComparisonService = {
         if (!original.data.cardinality.derived) {
           original.data.cardinality.derived = {};
         }
+        original.changed = true;
+        original.data.changed = true;
+
         const compliance = MetricService.updateCardinalityMetrics(
           originalId,
           originalProfile,
@@ -70,9 +88,7 @@ let ComparisonService = {
   },
   createCard(min, max) {
     return `${min}..${max}`;
-  },
-
-
+  }
 };
 
 module.exports = ComparisonService;

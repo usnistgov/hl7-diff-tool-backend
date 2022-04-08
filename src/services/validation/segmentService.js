@@ -1,17 +1,18 @@
 const DatatypeService = require("./datatypeService");
 const ValuesetService = require("./valuesetService");
-const ComparisonService = require("./comparisonService");
+const ComparisonService = require("../comparisonService");
 
 let SegmentService = {
   populateSegmentsMap: function(segmentsMap, igId, segments) {
+    console.log(igId)
     if (segments) {
       if (!segmentsMap[igId]) {
         segmentsMap[igId] = {};
       }
       segments.forEach(segment => {
-        const segId = segment["$"].id;
+        const segId = segment["$"].ID;
         if (!segmentsMap[igId][segId]) {
-          segmentsMap[igId][segId] = this.extractSegment(segment.Segment[0]);
+          segmentsMap[igId][segId] = this.extractSegment(segment);
         }
       });
     }
@@ -20,12 +21,13 @@ let SegmentService = {
     let result = {};
     if (segment) {
       result = {
-        id: segment["$"].id,
-        title: segment["$"].title,
-        name: segment["$"].name,
-        description: segment["$"].description,
-        label: segment["$"].label,
-        children: this.extractFields(segment.Fields[0].Field)
+        id: segment["$"].ID,
+        title: segment["$"].Label,
+        name: segment["$"].Name,
+        description: segment["$"].Description,
+        label: segment["$"].Label,
+        version: segment["$"].Version,
+        children: this.extractFields(segment.Field)
       };
       if (segment.Reasons && segment.Reasons[0] && segment.Reasons[0].Reason) {
         let reasonsMap = {};
@@ -61,7 +63,20 @@ let SegmentService = {
     let result = [];
     if (fields) {
       fields.forEach(field => {
-        result.push(field["$"]);
+        result.push({
+          name: field['$'].Name,
+          usage: field['$'].Usage,
+          datatype: field['$'].Datatype,
+          confLength: field['$'].ConfLength,
+          minLength: field['$'].MinLength,
+          maxLength: field['$'].MaxLength,
+          min: field['$'].Min,
+          max: field['$'].Max,
+          position: field['$'].position,
+          binding: field['$'].Binding,
+          bindingStrength: field['$'].BindingStrength,
+
+        });
       });
     }
     return result;

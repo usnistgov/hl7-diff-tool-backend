@@ -1,11 +1,11 @@
 const ProfileService = require("./profileService");
-const ComparisonService = require("./comparisonService");
+const ComparisonService = require("../comparisonService");
 const SegmentService = require("./segmentService");
 const ValuesetService = require("./valuesetService");
-const MetricService = require("./metricService");
+const MetricService = require("../metricService");
 
 const DatatypeService = require("./datatypeService");
-const globalConfigs = require("../../config/global");
+const globalConfigs = require("../../../config/global");
 const _ = require("underscore");
 
 let CalculationService = {
@@ -67,34 +67,34 @@ let CalculationService = {
     if (sourceProfile.profiles) {
       const profile = sourceProfile.profiles[0];
       const confProfile = profile.ConformanceProfile[0];
-      results.srcIg.profileId = confProfile['$'].id
+      results.srcIg.profileId = confProfile["$"].id;
       // sourceProfile.profiles.forEach(profile => {
-        results.profiles.push({
-          data: {
-            name: profile["$"].name,
-            description: profile["$"].description,
-            title: profile["$"].title,
-            id: profile["$"].id
-          },
-          children: ProfileService.populateProfileChildren(
-            profile.ConformanceProfile[0]
-          ),
-          segmentRefs: ProfileService.populateProfileSegments(
-            profile.ConformanceProfile[0],
-            "",
-            segmentsMap,
-            configuration,
-            sourceProfile.id,
-            datatypesMap,
-            valuesetsMap
-          ),
-          bindings: this.extractProfileBindings(
-            sourceProfile.id,
-            profile.ConformanceProfile[0].Binding,
-            configuration,
-            valuesetsMap
-          )
-        });
+      results.profiles.push({
+        data: {
+          name: profile["$"].name,
+          description: profile["$"].description,
+          title: profile["$"].title,
+          id: profile["$"].id
+        },
+        children: ProfileService.populateProfileChildren(
+          profile.ConformanceProfile[0]
+        ),
+        segmentRefs: ProfileService.populateProfileSegments(
+          profile.ConformanceProfile[0],
+          "",
+          segmentsMap,
+          configuration,
+          sourceProfile.id,
+          datatypesMap,
+          valuesetsMap
+        ),
+        bindings: this.extractProfileBindings(
+          sourceProfile.id,
+          profile.ConformanceProfile[0].Binding,
+          configuration,
+          valuesetsMap
+        )
+      });
       // });
     }
 
@@ -118,7 +118,7 @@ let CalculationService = {
         const profile = derivedIg.profiles[0];
         const confProfile = profile.ConformanceProfile[0];
         const originalProfileId = confProfile["$"].origin;
-        results.derivedIgsMap[derivedIg.id] = derivedIg.ig
+        results.derivedIgsMap[derivedIg.id] = derivedIg.ig;
         results.derivedIgs.push({
           title: derivedIg.ig,
           id: derivedIg.id,
@@ -662,7 +662,6 @@ let CalculationService = {
     valuesetsMap
   ) {
     if (srcSegment && derivedSegment) {
-      // console.log(derivedSegment)
       this.compareFields(
         originalProfile,
         sourceSegment,
@@ -764,40 +763,86 @@ let CalculationService = {
           }
 
           derivedBinding.valuesets.forEach((vs, i) => {
-            const srcVs = bindingDifferential.data.valuesets.src.value.find(
-              v => {
-                return (
-                  v.version === derivedBinding.versions[i] &&
-                  v.bindingIdentifier === vs
-                );
-              }
-            );
-
-            if (srcVs) {
-              // compare codes
-              const comparedCodes = ValuesetService.compareCodes(
-                valuesetsMap[srcIgId][vs][derivedBinding.versions[i]].children,
-                valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
-                  .children
+            // TODO: check why vs doesn't exist in xml file
+            if (valuesetsMap[srcIgId][vs] && bindingDifferential.data.valuesets.src.value) {
+              const srcVs = bindingDifferential.data.valuesets.src.value.find(
+                v => {
+                  return (
+                    v.version === derivedBinding.versions[i] &&
+                    v.bindingIdentifier === vs
+                  );
+                }
               );
 
-              let diff = {
-                bindingIdentifier: vs,
-                version: derivedBinding.versions[i],
-                status: "unchanged"
-              };
-              if (comparedCodes.changed) {
+              if (srcVs) {
+                // compare codes
+
+                const comparedCodes = ValuesetService.compareCodes(
+                  valuesetsMap[srcIgId][vs][derivedBinding.versions[i]]
+                    .children,
+                  valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
+                    .children
+                );
+
+                let diff = {
+                  bindingIdentifier: vs,
+                  version: derivedBinding.versions[i],
+                  status: "unchanged"
+                };
+                if (comparedCodes.changed) {
+                  segmentDifferential.changed = true;
+                  segmentDifferential.data.changed = true;
+                  bindingDifferential.changed = true;
+                  bindingDifferential.data.changed = true;
+                  diff.status = "changed";
+                  diff.codes = comparedCodes.list;
+                  const compliance = MetricService.updateBindingMetrics(
+                    derivedIgId,
+                    originalProfile,
+                    "codes"
+                  );
+                  if (
+                    !bindingDifferential.data.valuesets.derived[derivedIgId]
+                  ) {
+                    bindingDifferential.data.valuesets.derived[derivedIgId] = {
+                      value: [],
+                      compliance
+                    };
+                  }
+                  bindingDifferential.data.valuesets.derived[
+                    derivedIgId
+                  ].value.push(diff);
+                } else {
+                  // bindingDifferential.changed = true;
+                  // segmentDifferential.changed = true;
+                  // diff.codes =
+                  //   valuesetsMap[derivedIgId][vs][
+                  //     derivedBinding.versions[i]
+                  //   ].children;
+                  if (
+                    !bindingDifferential.data.valuesets.derived[derivedIgId]
+                  ) {
+                    bindingDifferential.data.valuesets.derived[derivedIgId] = {
+                      value: []
+                    };
+                  }
+                  if (bindingDifferential.data.valuesets.derived[derivedIgId])
+                    bindingDifferential.data.valuesets.derived[
+                      derivedIgId
+                    ].value.push(diff);
+                }
+              } else {
+                // Value set binding added
                 segmentDifferential.changed = true;
                 segmentDifferential.data.changed = true;
                 bindingDifferential.changed = true;
                 bindingDifferential.data.changed = true;
-                diff.status = "changed";
-                diff.codes = comparedCodes.list;
                 const compliance = MetricService.updateBindingMetrics(
                   derivedIgId,
                   originalProfile,
-                  "codes"
+                  "vs"
                 );
+
                 if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
                   bindingDifferential.data.valuesets.derived[derivedIgId] = {
                     value: [],
@@ -806,52 +851,15 @@ let CalculationService = {
                 }
                 bindingDifferential.data.valuesets.derived[
                   derivedIgId
-                ].value.push(diff);
-              } else {
-                // bindingDifferential.changed = true;
-                // segmentDifferential.changed = true;
-                // diff.codes =
-                //   valuesetsMap[derivedIgId][vs][
-                //     derivedBinding.versions[i]
-                //   ].children;
-                if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
-                  bindingDifferential.data.valuesets.derived[derivedIgId] = {
-                    value: []
-                  };
-                }
-                if (bindingDifferential.data.valuesets.derived[derivedIgId])
-                  bindingDifferential.data.valuesets.derived[
-                    derivedIgId
-                  ].value.push(diff);
+                ].value.push({
+                  bindingIdentifier: vs,
+                  version: derivedBinding.versions[i],
+                  // codes:
+                  //   valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
+                  //     .children,
+                  status: "added"
+                });
               }
-            } else {
-              // Value set binding added
-              segmentDifferential.changed = true;
-              segmentDifferential.data.changed = true;
-              bindingDifferential.changed = true;
-              bindingDifferential.data.changed = true;
-              const compliance = MetricService.updateBindingMetrics(
-                derivedIgId,
-                originalProfile,
-                "vs"
-              );
-
-              if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
-                bindingDifferential.data.valuesets.derived[derivedIgId] = {
-                  value: [],
-                  compliance
-                };
-              }
-              bindingDifferential.data.valuesets.derived[
-                derivedIgId
-              ].value.push({
-                bindingIdentifier: vs,
-                version: derivedBinding.versions[i],
-                // codes:
-                //   valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
-                //     .children,
-                status: "added"
-              });
             }
           });
         } else {
@@ -861,6 +869,7 @@ let CalculationService = {
           let newBindingDifferential = {
             data: {
               status: "added",
+              changed: true,
               position: derivedBinding.position,
               path: derivedBinding.path,
               context: {
@@ -958,6 +967,24 @@ let CalculationService = {
             segmentDifferential.data.changed = true;
             fieldDifferential.changed = true;
             fieldDifferential.data.changed = true;
+            // if(!segmentDifferential.data.consequential){
+            //   segmentDifferential.data.consequential = {
+            //     src: false,
+            //     derived: {}
+            //   }
+            //   console.log(segmentDifferential)
+            // }
+            // if (segmentDifferential.data.usage.derived[derivedIgId]) {
+            //   if (
+            //     segmentDifferential.data.usage.derived[derivedIgId] === "R" ||
+            //     segmentDifferential.data.usage.derived[derivedIgId] === "RE"
+            //   ) {
+            //     segmentDifferential.data.consequential.derived[derivedIgId] = true
+            //   } else {
+            //     segmentDifferential.data.consequential.derived[derivedIgId] = false
+
+            //   }
+            // }
             const compliance = MetricService.updateUsageMetrics(
               derivedIgId,
               originalProfile,
@@ -1118,6 +1145,7 @@ let CalculationService = {
         ) {
           if (!differential.data.usage.derived[derivedIgId]) {
             segmentDifferential.changed = true;
+
             segmentDifferential.data.changed = true;
             fieldDifferential.changed = true;
             fieldDifferential.data.changed = true;
@@ -1128,7 +1156,6 @@ let CalculationService = {
               derivedComponent.type = "subcomponent";
             } else {
               derivedComponent.type = "component";
-
             }
             differential.changed = true;
             differential.data.changed = true;
@@ -1143,7 +1170,7 @@ let CalculationService = {
             }
             path += `.${derivedComponent.position}`;
             globalPath += `.${derivedComponent.position}`;
-            
+
             const compliance = MetricService.updateUsageMetrics(
               derivedIgId,
               originalProfile,
@@ -1158,6 +1185,61 @@ let CalculationService = {
               reason: "",
               compliance
             };
+            if (componentDifferential) {
+              if (!componentDifferential.data.consequential) {
+                componentDifferential.data.consequential = {
+                  src: false,
+                  derived: {}
+                };
+              }
+
+              if (
+                (componentDifferential.data.usage.derived[derivedIgId] &&
+                  (componentDifferential.data.usage.derived[derivedIgId]
+                    .value === "R" ||
+                    componentDifferential.data.usage.derived[derivedIgId]
+                      .value === "RE")) ||
+                (!componentDifferential.data.usage.derived[derivedIgId] &&
+                  (componentDifferential.data.usage.src.value === "R" ||
+                    componentDifferential.data.usage.src.value === "RE"))
+              ) {
+                componentDifferential.data.consequential.derived[
+                  derivedIgId
+                ] = true;
+                componentDifferential.data.consequential.src = true;
+              } else {
+                componentDifferential.data.consequential.derived[
+                  derivedIgId
+                ] = false;
+              }
+            } else {
+              if (!fieldDifferential.data.consequential) {
+                fieldDifferential.data.consequential = {
+                  src: false,
+                  derived: {}
+                };
+              }
+
+              if (
+                (fieldDifferential.data.usage.derived[derivedIgId] &&
+                  (fieldDifferential.data.usage.derived[derivedIgId].value ===
+                    "R" ||
+                    fieldDifferential.data.usage.derived[derivedIgId].value ===
+                      "RE")) ||
+                (!fieldDifferential.data.usage.derived[derivedIgId] &&
+                  (fieldDifferential.data.usage.src.value === "R" ||
+                    fieldDifferential.data.usage.src.value === "RE"))
+              ) {
+                fieldDifferential.data.consequential.derived[
+                  derivedIgId
+                ] = true;
+                fieldDifferential.data.consequential.src = true;
+              } else {
+                fieldDifferential.data.consequential.derived[
+                  derivedIgId
+                ] = false;
+              }
+            }
           }
         }
         if (configuration.datatype) {
@@ -1256,7 +1338,7 @@ let CalculationService = {
     configuration
   ) {
     let reasons = derivedProfile.Reasons;
-    if (reasons && reasons[0]) {
+    if (reasons && reasons[0] && reasons[0].Reason) {
       if (!originalProfile.reasons) {
         originalProfile.reasons = {};
       }
@@ -1279,7 +1361,6 @@ let CalculationService = {
       });
     }
     // originalProfile.reasons = reasonsMap;
-
     if (derivedProfile.SegmentRef) {
       this.createSegRefsDiff(
         originalId,
@@ -1334,6 +1415,7 @@ let CalculationService = {
   createSegRefsDiff(originalId, originalProfile, segRefs, configuration) {
     if (segRefs) {
       if (originalProfile) {
+        // console.log(originalProfile.children)
         segRefs.forEach(segRef => {
           let originalSegRef = originalProfile.children.find(
             p => p.data.position === segRef["$"].position

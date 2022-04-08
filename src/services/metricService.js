@@ -152,6 +152,18 @@ let MetricService = {
         weaker: {
           total: 0,
           list: []
+        },
+        relaxed: {
+          total: 0,
+          list: []
+        },
+        removed: {
+          total: 0,
+          list: []
+        },
+        allowance: {
+          total: 0,
+          list: []
         }
       };
     }
@@ -257,6 +269,16 @@ let MetricService = {
     }
 
     if (srcUsage.startsWith("C")) {
+      if(derivedUsage.startsWith("C") && srcUsage !== derivedUsage){
+        const srcTrue = srcUsage[2];
+        const srcFalse = srcUsage[4];
+        const derTrue = derivedUsage[2];
+        const derFalse = derivedUsage[4];
+        if(srcTrue !== derTrue){
+          
+        }
+
+      }
       if (derivedUsage === "R") {
         originalProfile.compliance[originalId].total.info++;
         originalProfile.compliance[originalId].usage.info++;
@@ -266,14 +288,14 @@ let MetricService = {
         originalProfile.totalPercentage.usage.cr++;
         originalProfile.percentage[originalId].usage.total++;
         originalProfile.percentage[originalId].usage.cr++;
-        originalProfile.usageReport.stronger.total++;
-        originalProfile.usageReport.stronger.list.push({
-          ig: originalId,
-          profile: "IZ22",
-          path: path,
-          usage: derivedUsage,
-          srcUsage: srcUsage
-        });
+        // originalProfile.usageReport.stronger.total++;
+        // originalProfile.usageReport.stronger.list.push({
+        //   ig: originalId,
+        //   profile: "IZ22",
+        //   path: path,
+        //   usage: derivedUsage,
+        //   srcUsage: srcUsage
+        // });
         result = "info";
       }
       if (derivedUsage === "RE") {
@@ -321,14 +343,7 @@ let MetricService = {
           originalProfile.totalPercentage.usage.rc++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.rc++;
-          originalProfile.usageReport.weaker.total++;
-          originalProfile.usageReport.weaker.list.push({
-            ig: originalId,
-            profile: "IZ22",
-            path: path,
-            usage: derivedUsage,
-            srcUsage: srcUsage
-          });
+         
           result = "warning";
         }
         if (derivedUsage === "RE") {
@@ -340,8 +355,8 @@ let MetricService = {
           originalProfile.totalPercentage.usage.rre++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.rre++;
-          originalProfile.usageReport.weaker.total++;
-          originalProfile.usageReport.weaker.list.push({
+          originalProfile.usageReport.relaxed.total++;
+          originalProfile.usageReport.relaxed.list.push({
             ig: originalId,
             profile: "IZ22",
             path: path,
@@ -360,7 +375,14 @@ let MetricService = {
           originalProfile.totalPercentage.usage.ro++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.ro++;
-          
+          originalProfile.usageReport.relaxed.total++;
+          originalProfile.usageReport.relaxed.list.push({
+            ig: originalId,
+            profile: "IZ22",
+            path: path,
+            usage: derivedUsage,
+            srcUsage: srcUsage
+          });
           result = "error";
         }
         if (derivedUsage === "X") {
@@ -372,7 +394,14 @@ let MetricService = {
           originalProfile.totalPercentage.usage.rx++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.rx++;
-      
+          originalProfile.usageReport.removed.total++;
+          originalProfile.usageReport.removed.list.push({
+            ig: originalId,
+            profile: "IZ22",
+            path: path,
+            usage: derivedUsage,
+            srcUsage: srcUsage
+          });
           result = "error";
         }
         break;
@@ -418,6 +447,14 @@ let MetricService = {
           originalProfile.totalPercentage.usage.reo++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.reo++;
+          originalProfile.usageReport.relaxed.total++;
+          originalProfile.usageReport.relaxed.list.push({
+            ig: originalId,
+            profile: "IZ22",
+            path: path,
+            usage: derivedUsage,
+            srcUsage: srcUsage
+          });
           result = "error";
           break;
         }
@@ -430,6 +467,14 @@ let MetricService = {
           originalProfile.totalPercentage.usage.rex++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.rex++;
+          originalProfile.usageReport.removed.total++;
+          originalProfile.usageReport.removed.list.push({
+            ig: originalId,
+            profile: "IZ22",
+            path: path,
+            usage: derivedUsage,
+            srcUsage: srcUsage
+          });
           result = "error";
           break;
         }
@@ -476,6 +521,14 @@ let MetricService = {
           originalProfile.totalPercentage.usage.ore++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.ore++;
+          originalProfile.usageReport.stronger.total++;
+          originalProfile.usageReport.stronger.list.push({
+            ig: originalId,
+            profile: "IZ22",
+            path: path,
+            usage: derivedUsage,
+            srcUsage: srcUsage
+          });
           result = "info";
           break;
         }
@@ -488,6 +541,14 @@ let MetricService = {
           originalProfile.totalPercentage.usage.ox++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.ox++;
+          originalProfile.usageReport.stronger.total++;
+          originalProfile.usageReport.stronger.list.push({
+            ig: originalId,
+            profile: "IZ22",
+            path: path,
+            usage: derivedUsage,
+            srcUsage: srcUsage
+          });
           result = "warning";
           break;
         }
@@ -514,6 +575,14 @@ let MetricService = {
           originalProfile.totalPercentage.xr++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.xr++;
+          originalProfile.usageReport.stronger.total++;
+          originalProfile.usageReport.stronger.list.push({
+            ig: originalId,
+            profile: "IZ22",
+            path: path,
+            usage: derivedUsage,
+            srcUsage: srcUsage
+          });
           result = "error";
    
           break;
@@ -527,6 +596,14 @@ let MetricService = {
           originalProfile.totalPercentage.usage.xre++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.xre++;
+          originalProfile.usageReport.stronger.total++;
+          originalProfile.usageReport.stronger.list.push({
+            ig: originalId,
+            profile: "IZ22",
+            path: path,
+            usage: derivedUsage,
+            srcUsage: srcUsage
+          });
           result = "error";
          
           break;
@@ -540,6 +617,14 @@ let MetricService = {
           originalProfile.totalPercentage.usage.xo++;
           originalProfile.percentage[originalId].usage.total++;
           originalProfile.percentage[originalId].usage.xo++;
+          originalProfile.usageReport.allowance.total++;
+          originalProfile.usageReport.allowance.list.push({
+            ig: originalId,
+            profile: "IZ22",
+            path: path,
+            usage: derivedUsage,
+            srcUsage: srcUsage
+          });
           result = "error";
           break;
         }
