@@ -4,7 +4,7 @@ const ComparisonService = require("../comparisonService");
 
 let SegmentService = {
   populateSegmentsMap: function(segmentsMap, igId, segments) {
-    console.log(igId)
+    console.log(igId);
     if (segments) {
       if (!segmentsMap[igId]) {
         segmentsMap[igId] = {};
@@ -44,18 +44,7 @@ let SegmentService = {
         });
         result.fieldReasons = reasonsMap;
       }
-      if (
-        segment.Binding &&
-        segment.Binding[0].StructureElementBindings &&
-        segment.Binding[0].StructureElementBindings[0] &&
-        segment.Binding[0].StructureElementBindings[0].StructureElementBinding
-      ) {
-        result.bindings = ValuesetService.extractBindings(
-          segment.Binding[0].StructureElementBindings[0]
-            .StructureElementBinding,
-          ""
-        );
-      }
+   
     }
     return result;
   },
@@ -64,18 +53,18 @@ let SegmentService = {
     if (fields) {
       fields.forEach(field => {
         result.push({
-          name: field['$'].Name,
-          usage: field['$'].Usage,
-          datatype: field['$'].Datatype,
-          confLength: field['$'].ConfLength,
-          minLength: field['$'].MinLength,
-          maxLength: field['$'].MaxLength,
-          min: field['$'].Min,
-          max: field['$'].Max,
-          position: field['$'].position,
-          binding: field['$'].Binding,
-          bindingStrength: field['$'].BindingStrength,
-
+          name: field["$"].Name,
+          usage: field["$"].Usage,
+          datatype: field["$"].Datatype,
+          confLength: field["$"].ConfLength,
+          minLength: field["$"].MinLength,
+          maxLength: field["$"].MaxLength,
+          min: field["$"].Min,
+          max: field["$"].Max,
+          position: field["$"].position,
+          binding: field["$"].Binding,
+          bindingStrength: field["$"].BindingStrength,
+          bindingLocation: field["$"].BindingLocation
         });
       });
     }
@@ -130,6 +119,16 @@ let SegmentService = {
           derived: {}
         };
       }
+      if (configuration.valueset) {
+        if (field.binding) {
+          fieldDifferential.data.bindings = ValuesetService.populateSrcValuesetsValidation(
+            igId,
+            field,
+            configuration,
+            valuesetsMap,
+          );
+        }
+      }
 
       if (
         datatypesMap[igId][field.datatype].children &&
@@ -145,17 +144,7 @@ let SegmentService = {
           valuesetsMap
         );
       }
-
-      if (configuration.valueset) {
-        fieldDifferential.bindings = ValuesetService.populateSrcValuesets(
-          igId,
-          datatypesMap[igId][field.datatype].bindings,
-          configuration,
-          valuesetsMap,
-          "datatype_field"
-        );
-      }
-
+   
       results.push(fieldDifferential);
     });
     return results;

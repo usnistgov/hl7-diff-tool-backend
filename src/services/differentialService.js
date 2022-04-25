@@ -89,25 +89,31 @@ let DifferentialService = {
     );
     res.status(200).send({ success: true, data: result });
   },
-  calculateVerificationDifferential: function(req, res) {
-    const { source, ...files } = req.files;
+  calculateVerificationDifferential: async function(req, res) {
+    const { source, sourceVs, ...files } = req.files;
     if (!req.body.configuration) {
       return res.status(500).send({ message: "Configuration is required" });
     }
     if (!req.body.srcProfile) {
       return res.status(500).send({ message: "Source profile is required" });
     }
-    if (!req.body.derivedProfile) {
-      return res.status(500).send({ message: "Derived profile is required" });
-    }
+    // if (!req.body.derivedProfile) {
+    //   return res.status(500).send({ message: "Derived profile is required" });
+    // }
     const configuration = JSON.parse(req.body.configuration);
     const srcProfileId = req.body.srcProfile;
-    const derivedProfileId = req.body.derivedProfile;
 
     const sourceXml = source.data.toString("utf8");
     let sourceProfile;
     let derivedIgs = [];
     let self = this;
+    let sourceVsList;
+    if (sourceVs) {
+      sourceVsList = await parser.parseStringPromise(
+        sourceVs.data.toString("utf8")
+      );
+    }
+
     parser.parseString(sourceXml, function(err, result) {
       if (
         result &&
@@ -152,6 +158,14 @@ let DifferentialService = {
             self.populatePosition(dt);
           });
         }
+        if (sourceVsList) {
+          sourceProfile.valuesets = [];
+          if (sourceVsList.ValueSetLibrary.ValueSetDefinitions) {
+            sourceVsList.ValueSetLibrary.ValueSetDefinitions.forEach(list => {
+              sourceProfile.valuesets.push(...list.ValueSetDefinition);
+            });
+          }
+        }
         // for (
         //   let index = 0;
         //   index < result.Document.Section[0].Section.length;
@@ -174,13 +188,25 @@ let DifferentialService = {
         // }
       }
     });
-
+    let promises = [];
     for (const key in files) {
-      if (files.hasOwnProperty(key)) {
+      if (key.startsWith("vs")) {
+        const index = key.slice(2);
+        promises[index] = parser.parseStringPromise(
+          files[key].data.toString("utf8")
+        );
+      }
+    }
+    const vsFiles = await Promise.all(promises);
+    for (const key in files) {
+      if (files.hasOwnProperty(key) && key.startsWith("ig")) {
         const file = files[key];
         const fileXml = file.data.toString("utf8");
 
         parser.parseString(fileXml, function(err, result) {
+          const index = key.slice(2);
+          const derivedProfileId = req.body[`derivedProfile${index}`];
+
           if (
             result &&
             result.ConformanceProfile &&
@@ -198,8 +224,6 @@ let DifferentialService = {
             if (selectedProfile) {
               derivedIg.profile = selectedProfile;
               self.populatePosition(derivedIg.profile);
-
-             
             } else {
               return res
                 .status(500)
@@ -211,7 +235,7 @@ let DifferentialService = {
             ) {
               derivedIg.segments =
                 result.ConformanceProfile.Segments[0].Segment;
-                derivedIg.segments.forEach(seg => {
+              derivedIg.segments.forEach(seg => {
                 self.populatePosition(seg);
               });
             }
@@ -221,9 +245,19 @@ let DifferentialService = {
             ) {
               derivedIg.datatypes =
                 result.ConformanceProfile.Datatypes[0].Datatype;
-                derivedIg.datatypes.forEach(dt => {
+              derivedIg.datatypes.forEach(dt => {
                 self.populatePosition(dt);
               });
+            }
+            if (vsFiles[index]) {
+              derivedIg.valuesets = [];
+              if (vsFiles[index].ValueSetLibrary.ValueSetDefinitions) {
+                vsFiles[index].ValueSetLibrary.ValueSetDefinitions.forEach(
+                  list => {
+                    derivedIg.valuesets.push(...list.ValueSetDefinition);
+                  }
+                );
+              }
             }
             // for (
             //   let index = 0;

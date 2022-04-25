@@ -205,15 +205,7 @@ let ProfileService = {
         ],
         //TODO: remove comment
         // fieldReasons: segmentsMap[igId][segRef["$"].iDSeg].fieldReasons,
-        // bindings: [
-        //   ...ValuesetService.populateSrcValuesets(
-        //     igId,
-        //     segmentsMap[igId][segRef["$"].iDSeg].bindings,
-        //     configuration,
-        //     valuesetsMap,
-        //     "segment"
-        //   )
-        // ]
+       
       });
     });
     return res;

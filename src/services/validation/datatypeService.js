@@ -47,18 +47,7 @@ let DatatypeService = {
         });
         result.componentReasons = reasonsMap;
       }
-      if (
-        datatype.Binding &&
-        datatype.Binding[0].StructureElementBindings &&
-        datatype.Binding[0].StructureElementBindings[0] &&
-        datatype.Binding[0].StructureElementBindings[0].StructureElementBinding
-      ) {
-        result.bindings = ValuesetService.extractBindings(
-          datatype.Binding[0].StructureElementBindings[0]
-            .StructureElementBinding,
-          ""
-        );
-      }
+
     }
     return result;
   },
@@ -75,6 +64,8 @@ let DatatypeService = {
           maxLength: component['$'].MaxLength,
           binding: component['$'].Binding,
           bindingStrength: component['$'].BindingStrength,
+          bindingLocation: component['$'].BindingLocation,
+
           position: component['$'].position,
 
         });
@@ -136,13 +127,15 @@ let DatatypeService = {
         );
       }
       if (configuration.valueset) {
-        componentDifferential.bindings = ValuesetService.populateSrcValuesets(
-          igId,
-          datatypesMap[igId][component.datatype].bindings,
-          configuration,
-          valuesetsMap,
-          "datatype_component"
-        );
+        if (component.binding) {
+          componentDifferential.data.bindings = ValuesetService.populateSrcValuesetsValidation(
+            igId,
+            component,
+            configuration,
+            valuesetsMap,
+          );
+        }
+
       }
 
       results.push(componentDifferential);

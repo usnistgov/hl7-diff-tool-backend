@@ -1,3 +1,6 @@
+const _ = require("underscore");
+const MetricService = require("../metricService");
+
 let ValuesetService = {
   populateValuesetsMap: function(valuesetsMap, igId, valuesets) {
     if (valuesets) {
@@ -5,57 +8,55 @@ let ValuesetService = {
         valuesetsMap[igId] = {};
       }
       valuesets.forEach(valueset => {
-        const vsObject = valueset.Valueset[0];
-        const bindingId = vsObject["$"].bindingIdentifier;
-        let version = vsObject["$"].version;
-        if (version === "") {
-          version = null;
-        }
+        const bindingId = valueset["$"].BindingIdentifier;
+
         if (!valuesetsMap[igId][bindingId]) {
           valuesetsMap[igId][bindingId] = {};
         }
 
-        if (!valuesetsMap[igId][bindingId][version]) {
-          valuesetsMap[igId][bindingId][version] = this.extractValueset(
-            vsObject
-          );
-        }
+        valuesetsMap[igId][bindingId] = this.extractValueset(valueset);
       });
     }
   },
   extractValueset: function(valueset) {
     let result = {};
     if (valueset) {
+      //TODO: check rest of fields
       result = {
         id: valueset["$"].id,
         title: valueset["$"].title,
-        name: valueset["$"].name,
-        description: valueset["$"].description,
-        bindingIdentifier: valueset["$"].bindingIdentifier,
+        name: valueset["$"].Name,
+        description: valueset["$"].Description,
+        bindingIdentifier: valueset["$"].BindingIdentifier,
         codeSystemIds: valueset["$"].codeSystemIds,
-        contentDefinition: valueset["$"].contentDefinition,
-        extensibility: valueset["$"].extensibility,
+        contentDefinition: valueset["$"].ContentDefinition,
+        extensibility: valueset["$"].Extensibility,
         numberOfCodes: valueset["$"].numberOfCodes,
         oid: valueset["$"].oid,
-        stability: valueset["$"].stability,
-        version: valueset["$"].version,
-        children: this.extractCodes(valueset.Codes)
+        stability: valueset["$"].Stability,
+        version: valueset["$"].Version,
+        children: this.extractCodes(valueset.ValueElement)
       };
     }
+
     return result;
   },
   extractCodes: function(codes) {
     let result = [];
-    if (codes && codes[0] && codes[0].Code) {
-      codes[0].Code.forEach(code => {
-        if (code["$"].value !== "...") {
-          result.push(code["$"]);
-        }
+    if (codes) {
+      codes.forEach(code => {
+        result.push({
+          value: code["$"].Value,
+          usage: code["$"].Usage,
+          displayName: code["$"].DisplayName,
+          codeSystem: code["$"].CodeSystem
+        });
       });
     }
     result = result.sort(function(a, b) {
       return a.value.localeCompare(b.value);
     });
+
     return result;
   },
 
@@ -90,67 +91,6 @@ let ValuesetService = {
       });
     }
     return codes;
-  },
-  populateSrcValuesets: function(
-    igId,
-    bindings,
-    configuration,
-    valuesetsMap,
-    context
-  ) {
-    let results = [];
-    if (bindings && configuration.valueset) {
-      bindings.forEach(binding => {
-        let bindingDifferential = {
-          data: {
-            position: binding.position,
-            path: binding.path,
-            bindingLocation: binding.bindingLocation,
-            context: {
-              src: {
-                value: context
-              },
-              derived: {}
-            },
-            // locations: binding.locations,
-            locations: {
-              src: {
-                value: this.extractLocations(binding.locations)
-              },
-              derived: {}
-            },
-            LocationInfoType: binding.LocationInfoType,
-            strength: {
-              src: {
-                value: binding.strength
-              },
-              derived: {}
-            },
-            valuesets: {
-              src: {
-                value: this.extractVSWithVersion(
-                  binding.valuesets,
-                  binding.versions,
-                  valuesetsMap,
-                  igId
-                )
-              },
-              derived: {}
-            },
-            codes: this.buildSrcCodes(
-              binding.valuesets,
-              binding.versions,
-              valuesetsMap,
-              igId
-            )
-          },
-          changed: false
-        };
-        results.push(bindingDifferential);
-      });
-    }
-
-    return results;
   },
 
   buildSrcCodes: function(valuesets, versions, valuesetsMap, igId) {
@@ -187,77 +127,323 @@ let ValuesetService = {
     }
     return results;
   },
-  extractVSWithVersion: function(valuesets, versions, valuesetsMap, igId) {
+
+  getCodes: function(valueset, valuesetsMap, igId) {
     let result = [];
-    if (valuesets) {
-      valuesets.forEach((valueset, i) => {
-        result.push({
-          bindingIdentifier: valueset,
-          version: versions[i],
-          codes: this.getCodes(valueset, versions[i], valuesetsMap, igId)
-        });
-      });
-    }
-    return result;
-  },
-  getCodes: function(valueset, version, valuesetsMap, igId) {
-    let result = [];
-    if (
-      valueset &&
-      valuesetsMap[igId][valueset] &&
-      valuesetsMap[igId][valueset][version]
-    ) {
-      result = valuesetsMap[igId][valueset][version].children;
+    if (valueset && valuesetsMap[igId] && valuesetsMap[igId][valueset]) {
+      result = valuesetsMap[igId][valueset].children;
     }
 
     return result;
   },
-  extractBindings: function(bindings, currentPath) {
-    let result = [];
-    if (bindings) {
-      bindings.forEach(binding => {
-        const path =
-          currentPath === ""
-            ? binding["$"].Position1
-            : `${currentPath}.${binding["$"].Position1}`;
-        if (binding.ValuesetBinding && binding.ValuesetBinding[0]) {
-          const details = binding.ValuesetBinding[0]["$"];
 
-          const b = {
-            strength: details.strength,
-            bindingLocation: details.bindingLocation,
-            locations: details.locations,
-            position: binding["$"].Position1,
-            path,
-            LocationInfoType: binding["$"].LocationInfoType,
-            valuesets: this.extractValuesetsFromName(details.name),
-            versions: this.extractValuesetsFromName(details.version)
-          };
-          result.push(b);
-        }
-        if (
-          binding.StructureElementBindings &&
-          binding.StructureElementBindings[0] &&
-          binding.StructureElementBindings[0].StructureElementBinding
-        ) {
-          result.push.apply(
-            result,
-            this.extractBindings(
-              binding.StructureElementBindings[0].StructureElementBinding,
-              path
-            )
-          );
-        }
-      });
-    }
-    return result;
-  },
   extractValuesetsFromName: function(name) {
     let valuesets = [];
     if (name) {
       valuesets = name.split(",");
     }
     return valuesets;
+  },
+  populateSrcValuesetsValidation: function(
+    igId,
+    element,
+    configuration,
+    valuesetsMap
+  ) {
+    let results = [];
+    if (element && element.binding) {
+      let binding = element;
+      let bindingDifferential = {
+        data: {
+          locations: {
+            src: {
+              value: this.extractLocationsValidation(binding.bindingLocation)
+            },
+            derived: {}
+          },
+          strength: {
+            src: {
+              value: this.translateStrength(binding.bindingStrength)
+            },
+            derived: {}
+          },
+          valuesets: {
+            src: {
+              value: this.extractVSValidation(
+                binding.binding,
+                valuesetsMap,
+                igId
+              )
+            },
+            derived: {}
+          },
+
+          position: binding.position,
+          path: binding.path,
+
+          LocationInfoType: binding.LocationInfoType,
+
+          codes: this.buildSrcCodes(
+            binding.valuesets,
+            binding.versions,
+            valuesetsMap,
+            igId
+          )
+        },
+        changed: false
+      };
+      results.push(bindingDifferential);
+    }
+    return results;
+  },
+  extractVSValidation: function(valuesets, valuesetsMap, igId) {
+    let result = [];
+    if (valuesets) {
+      let list = valuesets.split(":");
+      list.forEach((valueset, i) => {
+   
+        result.push({
+          bindingIdentifier: valueset,
+          codes: this.getCodes(valueset, valuesetsMap, igId)
+        });
+      });
+    }
+    return result;
+  },
+  compareBindingsValidation: function(
+    originalProfile,
+    segmentDifferential,
+    fieldDifferential,
+    derivedField,
+    srcIgId,
+    derivedIgId,
+    valuesetsMap
+  ) {
+   
+    if (fieldDifferential.data.bindings && fieldDifferential.data.bindings[0]) {
+      let bindingDiff = fieldDifferential.data.bindings[0];
+      let strength = this.translateStrength(derivedField.bindingStrength);
+      if (bindingDiff.data.strength.src.value !== strength) {
+        bindingDiff.changed = true;
+        bindingDiff.data.changed = true;
+
+        fieldDifferential.changed = true;
+        fieldDifferential.data.changed = true;
+        segmentDifferential.changed = true;
+        segmentDifferential.data.changed = true;
+        const compliance = MetricService.updateBindingMetrics(
+          derivedIgId,
+          originalProfile,
+          "strength"
+        );
+        bindingDiff.data.strength.derived[derivedIgId] = {
+          value: strength,
+          compliance
+        };
+      }
+
+      const derivedLocations = this.extractLocationsValidation(
+        derivedField.bindingLocation
+      );
+      const locationsDiff = _.difference(
+        derivedLocations,
+        bindingDiff.data.locations.src.value
+      );
+
+      if (locationsDiff && locationsDiff.length > 0) {
+        if (!bindingDiff.data.locations.derived[derivedIgId]) {
+          bindingDiff.changed = true;
+          bindingDiff.data.changed = true;
+          segmentDifferential.changed = true;
+          segmentDifferential.data.changed = true;
+          fieldDifferential.changed = true;
+          fieldDifferential.data.changed = true;
+          const compliance = MetricService.updateBindingMetrics(
+            derivedIgId,
+            originalProfile,
+            "location"
+          );
+          bindingDiff.data.locations.derived[derivedIgId] = {
+            value: derivedLocations,
+            compliance
+          };
+        }
+      }
+
+      const valuesets = this.extractVSValidation(
+        derivedField.binding,
+        valuesetsMap,
+        derivedIgId
+      );
+      if (valuesets) {
+        valuesets.forEach((valueset, i) => {
+          let vs = valueset.bindingIdentifier;
+          if (
+            valuesetsMap[srcIgId] && valuesetsMap[srcIgId][vs] &&
+            bindingDiff.data.valuesets.src.value
+          ) {
+            const srcVs = bindingDiff.data.valuesets.src.value.find(v => {
+              return v.bindingIdentifier === vs;
+            });
+
+            if (srcVs) {
+              // compare codes
+
+              const comparedCodes = this.compareCodes(
+                valuesetsMap[srcIgId][vs].children,
+                valuesetsMap[derivedIgId][vs].children
+              );
+
+              let diff = {
+                bindingIdentifier: vs,
+                status: "unchanged"
+              };
+              if (comparedCodes.changed) {
+                segmentDifferential.changed = true;
+                segmentDifferential.data.changed = true;
+                bindingDiff.changed = true;
+                bindingDiff.data.changed = true;
+                fieldDifferential.changed = true;
+                fieldDifferential.data.changed = true;
+                diff.status = "changed";
+                diff.codes = comparedCodes.list;
+                const compliance = MetricService.updateBindingMetrics(
+                  derivedIgId,
+                  originalProfile,
+                  "codes"
+                );
+                if (!bindingDiff.data.valuesets.derived[derivedIgId]) {
+                  bindingDiff.data.valuesets.derived[derivedIgId] = {
+                    value: [],
+                    compliance
+                  };
+                }
+                bindingDiff.data.valuesets.derived[derivedIgId].value.push(
+                  diff
+                );
+              } else {
+                if (!bindingDiff.data.valuesets.derived[derivedIgId]) {
+                  bindingDiff.data.valuesets.derived[derivedIgId] = {
+                    value: []
+                  };
+                }
+                if (bindingDiff.data.valuesets.derived[derivedIgId])
+                  bindingDiff.data.valuesets.derived[derivedIgId].value.push(
+                    diff
+                  );
+              }
+            } else {
+              // New Value set added to binding
+              segmentDifferential.changed = true;
+              segmentDifferential.data.changed = true;
+              fieldDifferential.changed = true;
+              fieldDifferential.data.changed = true;
+              bindingDiff.changed = true;
+              bindingDiff.data.changed = true;
+              const compliance = MetricService.updateBindingMetrics(
+                derivedIgId,
+                originalProfile,
+                "vs"
+              );
+
+              if (!bindingDiff.data.valuesets.derived[derivedIgId]) {
+                bindingDiff.data.valuesets.derived[derivedIgId] = {
+                  value: [],
+                  compliance
+                };
+              }
+              bindingDiff.data.valuesets.derived[derivedIgId].value.push({
+                bindingIdentifier: vs,
+                codes: valuesetsMap[derivedIgId][vs].children,
+                status: "added"
+              });
+            }
+          }
+        });
+      }
+    } else {
+      if (derivedField.binding) {
+        // Added binding
+        segmentDifferential.changed = true;
+        segmentDifferential.data.changed = true;
+        fieldDifferential.changed = true;
+        fieldDifferential.data.changed = true;
+        let newBindingDifferential = {
+          data: {
+            status: "added",
+            changed: true,
+            locations: {
+              src: {},
+              derived: {}
+            },
+            strength: {
+              src: {
+                // value: derivedBinding.strength
+              },
+              derived: {}
+            },
+            valuesets: {
+              src: {},
+              derived: {}
+            }
+            // codes: this.buildSrcCodes(
+            //   derivedBinding.valuesets,
+            //   derivedBinding.versions,
+            //   valuesetsMap,
+            //   derivedIgId
+            // )
+          },
+          changed: true
+        };
+
+        newBindingDifferential.data.strength.derived[derivedIgId] = {
+          value: this.translateStrength(derivedField.bindingStrength)
+        };
+        newBindingDifferential.data.locations.derived[derivedIgId] = {
+          value: this.extractLocationsValidation(derivedField.bindingLocation)
+        };
+        newBindingDifferential.data.valuesets.derived[derivedIgId] = {
+          value: this.extractVSValidation(
+            derivedField.binding,
+            valuesetsMap,
+            derivedIgId
+          )
+        };
+        if (!fieldDifferential.data.bindings) {
+          fieldDifferential.data.bindings = [];
+        }
+        fieldDifferential.data.bindings.push(newBindingDifferential);
+      }
+    }
+  },
+  extractLocationsValidation: function(locations) {
+    let locs = [];
+    let results = [];
+    if (locations) {
+      locs = locations.split(":");
+      locs.forEach(location => {
+        location = parseInt(location);
+        results.push(location);
+      });
+    }
+    return results;
+  },
+  translateStrength(strength) {
+    let res = "";
+    if (strength) {
+      switch (strength) {
+        case "S":
+          res = "Suggested";
+          break;
+        case "R":
+          res = "Required";
+          break;
+        case "U":
+          res = "Unspecified";
+          break;
+      }
+    }
+    return res;
   }
 };
 

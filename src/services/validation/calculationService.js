@@ -91,13 +91,6 @@ let CalculationService = {
           datatypesMap,
           valuesetsMap
         )
-        //TODO: remove comment
-        // bindings: this.extractProfileBindings(
-        //   sourceProfile.id,
-        //   profile.ConformanceProfile[0].Binding,
-        //   configuration,
-        //   valuesetsMap
-        // )
       });
       // });
     }
@@ -159,299 +152,17 @@ let CalculationService = {
           segmentRef.data.path,
           segmentRef.changed
         );
-        this.spreadBindings(segmentRef.children, segmentRef.bindings);
         child.children = segmentRef.children;
         child.bindings = segmentRef.bindings;
         child.fieldReasons = segmentRef.fieldReasons;
         child.changed = segmentRef.changed;
         child.data.changed = segmentRef.changed;
       });
-      //TODO: remove comment
-      // this.spreadProfileBindings(profile.children, profile.bindings);
     });
 
     return results;
   },
-  extractProfileBindings(igId, Binding, configuration, valuesetsMap) {
-    let bindings = [];
-    if (
-      Binding &&
-      Binding[0].StructureElementBindings &&
-      Binding[0].StructureElementBindings[0] &&
-      Binding[0].StructureElementBindings[0].StructureElementBinding
-    ) {
-      bindings = ValuesetService.extractBindings(
-        Binding[0].StructureElementBindings[0].StructureElementBinding,
-        ""
-      );
-    }
 
-    const diffBindings = ValuesetService.populateSrcValuesets(
-      igId,
-      bindings,
-      configuration,
-      valuesetsMap,
-      "profile"
-    );
-    return diffBindings;
-  },
-  spreadBindings(fields, bindings) {
-    if (bindings) {
-      bindings.forEach(binding => {
-        if (binding.data.LocationInfoType === "FIELD") {
-          let field = fields.find(
-            f => f.data.position === binding.data.position
-          );
-          if (field) {
-            if (!field.data.bindings) {
-              field.data.bindings = [];
-            }
-            field.data.bindings.push(binding);
-          }
-        }
-        if (binding.data.LocationInfoType === "COMPONENT") {
-          const paths = binding.data.path.split(".");
-          if (paths.length === 2) {
-            let field = fields.find(f => f.data.position === paths[0]);
-            if (field && field.children) {
-              const component = field.children.find(
-                c => c.data.position === paths[1]
-              );
-              if (component) {
-                component.data.bindings = this.overrideBinding(
-                  component.data.bindings,
-                  binding,
-                  "segment"
-                );
-              }
-            }
-          } else {
-            console.error("ERROR");
-          }
-        }
-        if (binding.data.LocationInfoType === "SUBCOMPONENT") {
-          const paths = binding.data.path.split(".");
-          if (paths.length === 3) {
-            let field = fields.find(f => f.data.position === paths[0]);
-            if (field && field.children) {
-              const component = field.children.find(
-                c => c.data.position === paths[1]
-              );
-              if (component && component.children) {
-                const subcomponent = component.children.find(
-                  c => c.data.position === paths[2]
-                );
-                if (subcomponent) {
-                  subcomponent.data.bindings = this.overrideBinding(
-                    subcomponent.data.bindings,
-                    binding,
-                    "segment"
-                  );
-                }
-              }
-            }
-          } else {
-            console.error("ERROR");
-          }
-        }
-      });
-    }
-  },
-  spreadProfileBindings(segments, bindings) {
-    bindings.forEach(binding => {
-      if (binding.data.LocationInfoType === "FIELD") {
-        const paths = binding.data.path.split(".");
-        if (paths.length === 2) {
-          let segment = segments.find(s => s.data.position === paths[0]);
-          if (segment && segment.children) {
-            let field = segment.children.find(
-              f => f.data.position === paths[1]
-            );
-            if (field) {
-              field.data.bindings = this.overrideBinding(
-                field.data.bindings,
-                binding,
-                "profile"
-              );
-            }
-          }
-        } else {
-          console.error("ERROR");
-        }
-      }
-      if (binding.data.LocationInfoType === "COMPONENT") {
-        const paths = binding.data.path.split(".");
-        if (paths.length === 3) {
-          let segment = segments.find(s => s.data.position === paths[0]);
-          if (segment && segment.children) {
-            let field = segment.children.find(
-              f => f.data.position === paths[1]
-            );
-            if (field && field.children) {
-              const component = field.children.find(
-                c => c.data.position === paths[2]
-              );
-              if (component) {
-                component.data.bindings = this.overrideBinding(
-                  component.data.bindings,
-                  binding,
-                  "profile"
-                );
-              }
-            }
-          }
-        } else {
-          console.error("ERROR");
-        }
-      }
-      if (binding.data.LocationInfoType === "SUBCOMPONENT") {
-        const paths = binding.data.path.split(".");
-        if (paths.length === 4) {
-          let segment = segments.find(s => s.data.position === paths[0]);
-          if (segment && segment.children) {
-            let field = segment.children.find(
-              f => f.data.position === paths[1]
-            );
-            if (field && field.children) {
-              const component = field.children.find(
-                c => c.data.position === paths[2]
-              );
-              if (component && component.children) {
-                const subcomponent = component.children.find(
-                  c => c.data.position === paths[3]
-                );
-                if (subcomponent) {
-                  subcomponent.data.bindings = this.overrideBinding(
-                    subcomponent.data.bindings,
-                    binding,
-                    "profile"
-                  );
-                }
-              }
-            }
-          }
-        } else {
-          console.error("ERROR");
-        }
-      }
-    });
-  },
-  overrideBinding(bindings, newBinding, context) {
-    if (bindings) {
-      bindings.forEach(binding => {
-        // binding.data.context = context;
-        for (const igId in newBinding.data.valuesets.derived) {
-          binding.data.locations.derived[igId] =
-            newBinding.data.locations.derived[igId];
-          binding.data.strength.derived[igId] =
-            newBinding.data.strength.derived[igId];
-          // binding.data.valuesets.derived[igId] =
-          //   newBinding.data.valuesets.derived[igId];
-          binding.data.valuesets.derived[igId] = this.compareBindingValuesets(
-            binding.data.valuesets.src.value,
-            newBinding.data.valuesets.derived[igId].value
-          );
-
-          binding.data.context.derived[igId] = { value: context };
-          if (newBinding.data.codes.derived) {
-            binding.data.codes.derived[igId] =
-              newBinding.data.codes.derived[igId];
-          }
-          binding.changed = true;
-          binding.data.changed = true;
-        }
-      });
-
-      return bindings;
-    } else {
-      return [newBinding];
-    }
-  },
-  compareBindingValuesets(oldValuesets, newValuesets) {
-    if (newValuesets) {
-      newValuesets.forEach(newValueset => {
-        if (oldValuesets) {
-          const vs = oldValuesets.find(
-            v =>
-              v.bindingIdentifier === newValueset.bindingIdentifier &&
-              v.version === newValueset.version
-          );
-          if (!vs) {
-            newValueset.status = "added";
-          }
-        }
-      });
-    }
-    return { value: newValuesets };
-  },
-  spreadDatatypeBindings(components, bindings, context) {
-    bindings.forEach(binding => {
-      if (binding.data.LocationInfoType === "COMPONENT") {
-        let component = components.find(
-          f => f.data.position === binding.data.position
-        );
-        if (component) {
-          if (context === "datatype_component") {
-            if (!component.data.bindings) {
-              component.data.bindings = [];
-            }
-            if (component.data.bindings.length === 0) {
-              component.data.bindings.push(binding);
-            } else {
-              if (!component.data.bindings[0].data.locations.src.value) {
-                component.data.bindings[0].data.locations.src.value =
-                  binding.data.locations.src.value;
-              }
-              if (!component.data.bindings[0].data.strength.src.value) {
-                component.data.bindings[0].data.strength.src.value =
-                  binding.data.strength.src.value;
-              }
-              if (!component.data.bindings[0].data.valuesets.src.value) {
-                component.data.bindings[0].data.valuesets.src.value =
-                  binding.data.valuesets.src.value;
-              }
-              if (
-                binding.data.codes.src &&
-                binding.data.codes.src.value &&
-                (!component.data.bindings[0].data.codes ||
-                  !component.data.bindings[0].data.codes.src.value)
-              ) {
-                component.data.bindings[0].data.codes.src.value =
-                  binding.data.codes.src.value;
-              }
-            }
-          }
-          if (context === "datatype_field") {
-            component.data.bindings = this.overrideBinding(
-              component.data.bindings,
-              binding,
-              context
-            );
-          }
-        }
-      }
-      if (binding.data.LocationInfoType === "SUBCOMPONENT") {
-        const paths = binding.data.path.split(".");
-        if (paths.length === 2) {
-          let component = components.find(f => f.data.position === paths[0]);
-          if (component && component.children) {
-            const subcomponent = component.children.find(
-              c => c.data.position === paths[1]
-            );
-            if (subcomponent) {
-              subcomponent.data.bindings = this.overrideBinding(
-                subcomponent.data.bindings,
-                binding,
-                context
-              );
-            }
-          }
-        } else {
-          console.error("ERROR");
-        }
-      }
-    });
-  },
   getDataByPath(data, path, changed) {
     const paths = path.split(".");
 
@@ -512,15 +223,6 @@ let CalculationService = {
           configuration
         );
 
-        this.createProfileBindingsDiff(
-          diff,
-          derivedIg.id,
-          originalProfile,
-          confProfile,
-          configuration,
-          valuesetsMap
-        );
-
         this.createProfileSegmentsDiff(
           diff,
           derivedIg.id,
@@ -540,40 +242,7 @@ let CalculationService = {
       // );
     }
   },
-  createProfileBindingsDiff(
-    differential,
-    derivedIgId,
-    originalProfile,
-    derivedProfile,
-    configuration,
-    valuesetsMap
-  ) {
-    if (derivedProfile.Binding) {
-      let bindings = [];
-      if (
-        derivedProfile.Binding &&
-        derivedProfile.Binding[0].StructureElementBindings &&
-        derivedProfile.Binding[0].StructureElementBindings[0] &&
-        derivedProfile.Binding[0].StructureElementBindings[0]
-          .StructureElementBinding
-      ) {
-        bindings = ValuesetService.extractBindings(
-          derivedProfile.Binding[0].StructureElementBindings[0]
-            .StructureElementBinding,
-          ""
-        );
-      }
-      this.compareBindings(
-        originalProfile,
-        differential.srcIg.id,
-        derivedIgId,
-        bindings,
-        valuesetsMap,
-        "profile",
-        originalProfile
-      );
-    }
-  },
+
   createProfileSegmentsDiff(
     differential,
     derivedIgId,
@@ -588,7 +257,6 @@ let CalculationService = {
 
     if (originalProfile) {
       if (derivedProfile.Segment) {
-
         segmentRefs.push(
           ...ProfileService.extractSegmentFromSegRefs(
             derivedProfile.Segment,
@@ -638,17 +306,6 @@ let CalculationService = {
           // new segmentref
         }
       });
-      if (configuration.valueset) {
-        // this.compareBindings(
-        //   sourceSegment,
-        //   srcIgId,
-        //   derivedIgId,
-        //   derivedSegment.bindings,
-        //   configuration,
-        //   datatypesMap,
-        //   valuesetsMap
-        // );
-      }
     } else {
       // Can't compare
     }
@@ -677,17 +334,6 @@ let CalculationService = {
         datatypesMap,
         valuesetsMap
       );
-      if (configuration.valueset) {
-        this.compareBindings(
-          sourceSegment,
-          srcIgId,
-          derivedIgId,
-          derivedSegment.bindings,
-          valuesetsMap,
-          "segment",
-          originalProfile
-        );
-      }
 
       if (sourceSegment.changed) {
         if (!sourceSegment.data.label.derived[derivedIgId]) {
@@ -698,225 +344,6 @@ let CalculationService = {
       }
       sourceSegment.children.sort(function(a, b) {
         return a.data.position - b.data.position;
-      });
-    }
-  },
-  compareBindings(
-    segmentDifferential,
-    srcIgId,
-    derivedIgId,
-    derivedBindings,
-    valuesetsMap,
-    context,
-    originalProfile
-  ) {
-    if (derivedBindings) {
-      derivedBindings.forEach(derivedBinding => {
-        let bindingDifferential = segmentDifferential.bindings.find(
-          b => b.data && b.data.path === derivedBinding.path
-        );
-
-        if (bindingDifferential) {
-          bindingDifferential.data.context.derived[derivedIgId] = {
-            value: context
-          };
-          if (
-            derivedBinding.strength !=
-            bindingDifferential.data.strength.src.value
-          ) {
-            if (!bindingDifferential.data.strength.derived[derivedIgId]) {
-              segmentDifferential.changed = true;
-              segmentDifferential.data.changed = true;
-              bindingDifferential.changed = true;
-              bindingDifferential.data.changed = true;
-              const compliance = MetricService.updateBindingMetrics(
-                derivedIgId,
-                originalProfile,
-                "strength"
-              );
-              bindingDifferential.data.strength.derived[derivedIgId] = {
-                value: derivedBinding.strength,
-                compliance
-              };
-            }
-          }
-
-          const derivedLocations = ValuesetService.extractLocations(
-            derivedBinding.locations
-          );
-          const locationsDiff = _.difference(
-            derivedLocations,
-            bindingDifferential.data.locations.src.value
-          );
-          if (locationsDiff && locationsDiff.length > 0) {
-            if (!bindingDifferential.data.locations.derived[derivedIgId]) {
-              segmentDifferential.changed = true;
-              segmentDifferential.data.changed = true;
-              bindingDifferential.changed = true;
-              bindingDifferential.data.changed = true;
-              const compliance = MetricService.updateBindingMetrics(
-                derivedIgId,
-                originalProfile,
-                "location"
-              );
-              bindingDifferential.data.locations.derived[derivedIgId] = {
-                value: derivedLocations,
-                compliance
-              };
-            }
-          }
-
-          derivedBinding.valuesets.forEach((vs, i) => {
-            const srcVs = bindingDifferential.data.valuesets.src.value.find(
-              v => {
-                return (
-                  v.version === derivedBinding.versions[i] &&
-                  v.bindingIdentifier === vs
-                );
-              }
-            );
-
-            if (srcVs) {
-              // compare codes
-              const comparedCodes = ValuesetService.compareCodes(
-                valuesetsMap[srcIgId][vs][derivedBinding.versions[i]].children,
-                valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
-                  .children
-              );
-
-              let diff = {
-                bindingIdentifier: vs,
-                version: derivedBinding.versions[i],
-                status: "unchanged"
-              };
-              if (comparedCodes.changed) {
-                segmentDifferential.changed = true;
-                segmentDifferential.data.changed = true;
-                bindingDifferential.changed = true;
-                bindingDifferential.data.changed = true;
-                diff.status = "changed";
-                diff.codes = comparedCodes.list;
-                const compliance = MetricService.updateBindingMetrics(
-                  derivedIgId,
-                  originalProfile,
-                  "codes"
-                );
-                if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
-                  bindingDifferential.data.valuesets.derived[derivedIgId] = {
-                    value: [],
-                    compliance
-                  };
-                }
-                bindingDifferential.data.valuesets.derived[
-                  derivedIgId
-                ].value.push(diff);
-              } else {
-                // bindingDifferential.changed = true;
-                // segmentDifferential.changed = true;
-                // diff.codes =
-                //   valuesetsMap[derivedIgId][vs][
-                //     derivedBinding.versions[i]
-                //   ].children;
-                if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
-                  bindingDifferential.data.valuesets.derived[derivedIgId] = {
-                    value: []
-                  };
-                }
-                if (bindingDifferential.data.valuesets.derived[derivedIgId])
-                  bindingDifferential.data.valuesets.derived[
-                    derivedIgId
-                  ].value.push(diff);
-              }
-            } else {
-              // Value set binding added
-              segmentDifferential.changed = true;
-              segmentDifferential.data.changed = true;
-              bindingDifferential.changed = true;
-              bindingDifferential.data.changed = true;
-              const compliance = MetricService.updateBindingMetrics(
-                derivedIgId,
-                originalProfile,
-                "vs"
-              );
-
-              if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
-                bindingDifferential.data.valuesets.derived[derivedIgId] = {
-                  value: [],
-                  compliance
-                };
-              }
-              bindingDifferential.data.valuesets.derived[
-                derivedIgId
-              ].value.push({
-                bindingIdentifier: vs,
-                version: derivedBinding.versions[i],
-                // codes:
-                //   valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
-                //     .children,
-                status: "added"
-              });
-            }
-          });
-        } else {
-          //TODO: binding added
-          segmentDifferential.changed = true;
-          segmentDifferential.data.changed = true;
-          let newBindingDifferential = {
-            data: {
-              status: "added",
-              position: derivedBinding.position,
-              path: derivedBinding.path,
-              context: {
-                src: {},
-                derived: {}
-              },
-              bindingLocation: derivedBinding.bindingLocation,
-              locations: {
-                src: {},
-                derived: {}
-              },
-              LocationInfoType: derivedBinding.LocationInfoType,
-              strength: {
-                src: {
-                  // value: derivedBinding.strength
-                },
-                derived: {}
-              },
-              valuesets: {
-                src: {},
-                derived: {}
-              },
-              codes: ValuesetService.buildSrcCodes(
-                derivedBinding.valuesets,
-                derivedBinding.versions,
-                valuesetsMap,
-                derivedIgId
-              )
-            },
-            changed: true
-          };
-          newBindingDifferential.data.context.derived[derivedIgId] = {
-            value: context
-          };
-          newBindingDifferential.data.strength.derived[derivedIgId] = {
-            value: derivedBinding.strength
-          };
-          newBindingDifferential.data.locations.derived[derivedIgId] = {
-            value: ValuesetService.extractLocations(derivedBinding.locations)
-          };
-          newBindingDifferential.data.valuesets.derived[derivedIgId] = {
-            value: ValuesetService.extractVSWithVersion(
-              derivedBinding.valuesets,
-              derivedBinding.versions,
-              valuesetsMap,
-              derivedIgId
-            )
-          };
-          if (!segmentDifferential.bindings) {
-            segmentDifferential.bindings = [];
-          }
-          segmentDifferential.bindings.push(newBindingDifferential);
-        }
       });
     }
   },
@@ -995,6 +422,18 @@ let CalculationService = {
             };
           }
         }
+        if (configuration.valueset) {
+
+          ValuesetService.compareBindingsValidation(
+            originalProfile,
+            segmentDifferential,
+            fieldDifferential,
+            derivedField,
+            srcIgId,
+            derivedIgId,
+            valuesetsMap
+          );
+        }
         if (configuration.cardinality) {
           const card = ComparisonService.createCard(
             derivedField.min,
@@ -1050,27 +489,10 @@ let CalculationService = {
               };
             }
           }
-
           const srcDt =
             datatypesMap[srcIgId][fieldDifferential.data.datatype.src.value];
           const derivedDt = datatypesMap[derivedIgId][derivedField.datatype];
 
-          if (configuration.valueset) {
-            this.compareBindings(
-              fieldDifferential,
-              srcIgId,
-              derivedIgId,
-              derivedDt.bindings,
-              valuesetsMap,
-              "datatype_field",
-              originalProfile
-            );
-            this.spreadDatatypeBindings(
-              fieldDifferential.children,
-              fieldDifferential.bindings,
-              "datatype_field"
-            );
-          }
           if (
             srcDt.children &&
             srcDt.children.length > 0 &&
@@ -1235,6 +657,17 @@ let CalculationService = {
             }
           }
         }
+        if (configuration.valueset) {
+          ValuesetService.compareBindingsValidation(
+            originalProfile,
+            segmentDifferential,
+            differential,
+            derivedComponent,
+            srcIgId,
+            derivedIgId,
+            valuesetsMap
+          );
+        }
         if (configuration.datatype) {
           if (
             derivedComponent.datatype != differential.data.datatype.src.value
@@ -1278,47 +711,29 @@ let CalculationService = {
               };
             }
           }
+        }
+        const srcDt =
+          datatypesMap[srcIgId][differential.data.datatype.src.value];
+        const derivedDt = datatypesMap[derivedIgId][derivedComponent.datatype];
 
-          const srcDt =
-            datatypesMap[srcIgId][differential.data.datatype.src.value];
-          const derivedDt =
-            datatypesMap[derivedIgId][derivedComponent.datatype];
-
-          if (configuration.valueset) {
-            this.compareBindings(
-              differential,
-              srcIgId,
-              derivedIgId,
-              derivedDt.bindings,
-              valuesetsMap,
-              "datatype_component",
-              originalProfile
-            );
-            this.spreadDatatypeBindings(
-              differential.children,
-              differential.bindings,
-              "datatype_component"
-            );
-          }
-          if (
-            srcDt.children &&
-            srcDt.children.length > 0 &&
-            differential.children
-          ) {
-            this.compareComponents(
-              originalProfile,
-              segmentDifferential,
-              fieldDifferential,
-              differential,
-              srcIgId,
-              derivedIgId,
-              derivedDt.children,
-              derivedDt.componentReasons,
-              configuration,
-              datatypesMap,
-              valuesetsMap
-            );
-          }
+        if (
+          srcDt.children &&
+          srcDt.children.length > 0 &&
+          differential.children
+        ) {
+          this.compareComponents(
+            originalProfile,
+            segmentDifferential,
+            fieldDifferential,
+            differential,
+            srcIgId,
+            derivedIgId,
+            derivedDt.children,
+            derivedDt.componentReasons,
+            configuration,
+            datatypesMap,
+            valuesetsMap
+          );
         }
       }
     });
