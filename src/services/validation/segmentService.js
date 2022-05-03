@@ -64,7 +64,9 @@ let SegmentService = {
           position: field["$"].position,
           binding: field["$"].Binding,
           bindingStrength: field["$"].BindingStrength,
-          bindingLocation: field["$"].BindingLocation
+          bindingLocation: field["$"].BindingLocation,
+          predicate: field["$"].predicate,
+
         });
       });
     }
@@ -97,6 +99,14 @@ let SegmentService = {
         fieldDifferential.data.usage = {
           src: {
             value: field.usage
+          },
+          derived: {}
+        };
+      }
+      if (configuration.predicate) {
+        fieldDifferential.data.predicate = {
+          src: {
+            value: field.predicate
           },
           derived: {}
         };

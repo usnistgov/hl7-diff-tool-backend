@@ -96,6 +96,14 @@ let DatatypeService = {
           derived: {}
         };
       }
+      if (configuration.predicate) {
+        componentDifferential.data.predicate = {
+          src: {
+            value: component.predicate
+          },
+          derived: {}
+        };
+      }
       if (configuration.datatype) {
         componentDifferential.data.datatype = {
           src: {

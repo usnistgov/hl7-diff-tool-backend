@@ -32,6 +32,9 @@ let ProfileService = {
           usage: {
             src: { value: segRef["$"].usage }
           },
+          predicate: {
+            src: { value: segRef["$"].predicate }
+          },
           cardinality: {
             src: { value: this.createCard(segRef["$"].min, segRef["$"].max) }
           },
@@ -65,6 +68,9 @@ let ProfileService = {
             name: group["$"].name,
             usage: {
               src: { value: group["$"].usage }
+            },
+            predicate: {
+              src: { value: group["$"].predicate }
             },
             cardinality: {
               src: { value: this.createCard(group["$"].min, group["$"].max) }

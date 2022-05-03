@@ -388,24 +388,7 @@ let CalculationService = {
             segmentDifferential.data.changed = true;
             fieldDifferential.changed = true;
             fieldDifferential.data.changed = true;
-            // if(!segmentDifferential.data.consequential){
-            //   segmentDifferential.data.consequential = {
-            //     src: false,
-            //     derived: {}
-            //   }
-            //   console.log(segmentDifferential)
-            // }
-            // if (segmentDifferential.data.usage.derived[derivedIgId]) {
-            //   if (
-            //     segmentDifferential.data.usage.derived[derivedIgId] === "R" ||
-            //     segmentDifferential.data.usage.derived[derivedIgId] === "RE"
-            //   ) {
-            //     segmentDifferential.data.consequential.derived[derivedIgId] = true
-            //   } else {
-            //     segmentDifferential.data.consequential.derived[derivedIgId] = false
-
-            //   }
-            // }
+         
             const compliance = MetricService.updateUsageMetrics(
               derivedIgId,
               originalProfile,
@@ -419,6 +402,21 @@ let CalculationService = {
               value: derivedField.usage,
               reason: "",
               compliance
+            };
+          }
+        }
+        if (
+          configuration.predicate &&
+          derivedField.predicate != fieldDifferential.data.predicate.src.value
+        ) {
+          if (!fieldDifferential.data.predicate.derived[derivedIgId]) {
+            segmentDifferential.changed = true;
+            segmentDifferential.data.changed = true;
+            fieldDifferential.changed = true;
+            fieldDifferential.data.changed = true;
+
+            fieldDifferential.data.predicate.derived[derivedIgId] = {
+              value: derivedField.predicate,
             };
           }
         }
@@ -586,6 +584,7 @@ let CalculationService = {
             path += `.${derivedComponent.position}`;
             globalPath += `.${derivedComponent.position}`;
 
+
             const compliance = MetricService.updateUsageMetrics(
               derivedIgId,
               originalProfile,
@@ -655,6 +654,33 @@ let CalculationService = {
                 ] = false;
               }
             }
+          }
+        }
+        if (
+          configuration.predicate &&
+          derivedComponent.predicate != differential.data.predicate.src.value
+        ) {
+          if (!differential.data.predicate.derived[derivedIgId]) {
+            segmentDifferential.changed = true;
+
+            segmentDifferential.data.changed = true;
+            fieldDifferential.changed = true;
+            fieldDifferential.data.changed = true;
+
+            if (componentDifferential) {
+              componentDifferential.changed = true;
+              componentDifferential.data.changed = true;
+              derivedComponent.type = "subcomponent";
+            } else {
+              derivedComponent.type = "component";
+            }
+            differential.changed = true;
+            differential.data.changed = true;
+
+            differential.data.predicate.derived[derivedIgId] = {
+              value: derivedComponent.predicate
+            };
+          
           }
         }
         if (configuration.valueset) {
@@ -803,7 +829,9 @@ let CalculationService = {
             usage: group["$"].Usage,
             min: group["$"].Min,
             max: group["$"].Max,
-            position: group["$"].position
+            position: group["$"].position,
+            predicate: group["$"].predicate
+
           };
           ComparisonService.compare(
             originalId,
@@ -837,7 +865,9 @@ let CalculationService = {
             usage: segRef["$"].Usage,
             min: segRef["$"].Min,
             max: segRef["$"].Max,
-            position: segRef["$"].position
+            position: segRef["$"].position,
+            predicate: segRef["$"].predicate
+
           };
           ComparisonService.compare(
             originalId,

@@ -97,6 +97,15 @@ let SegmentService = {
           derived: {}
         };
       }
+      if (configuration.predicate) {
+       
+        fieldDifferential.data.predicate = {
+          src: {
+            value: field.predicate
+          },
+          derived: {}
+        };
+      }
       if (configuration.cardinality) {
         const card = ComparisonService.createCard(field.min, field.max);
 

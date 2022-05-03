@@ -20,6 +20,19 @@ let ComparisonService = {
         reason: ""
       };
     }
+    if(configuration.predicate){
+
+      if (original.data.predicate && original.data.predicate.src.value !== derived.predicate) {
+        if (!original.data.predicate.derived) {
+          original.data.predicate.derived = {};
+        }
+        original.changed = true;
+        original.data.changed = true;
+        original.data.predicate.derived[originalId] = {
+          value: derived.predicate,
+        };
+      }
+    }
 
     if (configuration.usage) {
       if (!original.data.consequential) {

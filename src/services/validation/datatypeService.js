@@ -55,6 +55,9 @@ let DatatypeService = {
     let result = [];
     if (components) {
       components.forEach(component => {
+        if(component.predicate){
+          console.log("000000")
+        }
         result.push({
           name: component['$'].Name,
           usage: component['$'].Usage,
@@ -65,8 +68,8 @@ let DatatypeService = {
           binding: component['$'].Binding,
           bindingStrength: component['$'].BindingStrength,
           bindingLocation: component['$'].BindingLocation,
-
           position: component['$'].position,
+          predicate: component['$'].predicate,
 
         });
       });
@@ -104,6 +107,15 @@ let DatatypeService = {
           derived: {}
         };
       }
+      if (configuration.predicate) {
+        componentDifferential.data.predicate = {
+          src: {
+            value: component.predicate
+          },
+          derived: {}
+        };
+      }
+    
       if (configuration.datatype) {
         componentDifferential.data.datatype = {
           src: {

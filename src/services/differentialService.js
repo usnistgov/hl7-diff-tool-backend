@@ -90,7 +90,7 @@ let DifferentialService = {
     res.status(200).send({ success: true, data: result });
   },
   calculateVerificationDifferential: async function(req, res) {
-    const { source, sourceVs, ...files } = req.files;
+    const { source, sourceVs, sourceCt, ...files } = req.files;
     if (!req.body.configuration) {
       return res.status(500).send({ message: "Configuration is required" });
     }
@@ -108,9 +108,16 @@ let DifferentialService = {
     let derivedIgs = [];
     let self = this;
     let sourceVsList;
+    let sourceCtList;
+
     if (sourceVs) {
       sourceVsList = await parser.parseStringPromise(
         sourceVs.data.toString("utf8")
+      );
+    }
+    if (sourceCt) {
+      sourceCtList = await parser.parseStringPromise(
+        sourceCt.data.toString("utf8")
       );
     }
 
@@ -166,38 +173,45 @@ let DifferentialService = {
             });
           }
         }
-        // for (
-        //   let index = 0;
-        //   index < result.Document.Section[0].Section.length;
-        //   index++
-        // ) {
-        //   const section = result.Document.Section[0].Section[index];
-        //   if (section["$"].type === "CONFORMANCEPROFILEREGISTRY") {
-        //     sourceProfile.profiles = section.Section;
-        //   }
+        if (sourceCtList) {
+          sourceProfile.predicates = [];
+          sourceProfile.constraints = [];
 
-        //   if (section["$"].type === "SEGMENTREGISTRY") {
-        //     sourceProfile.segments = section.Section;
-        //   }
-        //   if (section["$"].type === "DATATYPEREGISTRY") {
-        //     sourceProfile.datatypes = section.Section;
-        //   }
-        //   if (section["$"].type === "VALUESETREGISTRY") {
-        //     sourceProfile.valuesets = section.Section;
-        //   }
-        // }
+          if (sourceCtList.ConformanceContext.Predicates) {
+            sourceProfile.predicates =
+              sourceCtList.ConformanceContext.Predicates[0];
+            // sourceVsList.ConformanceContext.Predicates.forEach(list => {
+            //   sourceProfile.predicates.push(...list.ValueSetDefinition);
+            // });
+          }
+          if (sourceCtList.ConformanceContext.Constraints) {
+            sourceProfile.constraints =
+              sourceCtList.ConformanceContext.Constraints[0];
+          }
+          self.populatePredicates(sourceProfile);
+        }
       }
     });
-    let promises = [];
+    let vsPromises = [];
+    let ctPromises = [];
+
     for (const key in files) {
       if (key.startsWith("vs")) {
         const index = key.slice(2);
-        promises[index] = parser.parseStringPromise(
+        vsPromises[index] = parser.parseStringPromise(
+          files[key].data.toString("utf8")
+        );
+      }
+      if (key.startsWith("ct")) {
+        const index = key.slice(2);
+        ctPromises[index] = parser.parseStringPromise(
           files[key].data.toString("utf8")
         );
       }
     }
-    const vsFiles = await Promise.all(promises);
+    const vsFiles = await Promise.all(vsPromises);
+    const ctFiles = await Promise.all(ctPromises);
+
     for (const key in files) {
       if (files.hasOwnProperty(key) && key.startsWith("ig")) {
         const file = files[key];
@@ -259,6 +273,19 @@ let DifferentialService = {
                 );
               }
             }
+            if (ctFiles[index]) {
+              derivedIg.predicates = [];
+              derivedIg.constraints = [];
+              if (ctFiles[index].ConformanceContext.Predicates) {
+                derivedIg.predicates =
+                  ctFiles[index].ConformanceContext.Predicates[0];
+              }
+              if (ctFiles[index].ConformanceContext.Constraints) {
+                derivedIg.constraints =
+                  ctFiles[index].ConformanceContext.Constraints[0];
+              }
+              self.populatePredicates(derivedIg);
+            }
             // for (
             //   let index = 0;
             //   index < result.Document.Section[0].Section.length;
@@ -291,7 +318,116 @@ let DifferentialService = {
     );
     res.status(200).send({ success: true, data: result });
   },
+  populatePredicates: function(profile) {
+    if (profile.predicates) {
+      if (profile.predicates.Segment) {
+        let predicates = profile.predicates.Segment[0].ByID;
+        if (predicates) {
+          predicates.forEach(predicate => {
+            let segment = profile.segments.find(
+              seg => seg["$"].ID === predicate["$"].ID
+            );
+            if (segment) {
+              predicate.Predicate.forEach(pre => {
+                let position = pre["$"].Target.split("[")[0];
+                let field = segment.Field.find(
+                  f => f["$"].position === position
+                );
+                if (field) {
+                  field["$"].predicate = pre.Description[0];
+                  //TODO: update usage to C(R/X)
+                }
+              });
+            }
+          });
+        }
+      }
+      if (profile.predicates.Datatype) {
+        let predicates = profile.predicates.Datatype[0].ByID;
+        if (predicates) {
+          predicates.forEach(predicate => {
+            let datatype = profile.datatypes.find(
+              dt => dt["$"].ID === predicate["$"].ID
+            );
+            if (datatype) {
+              predicate.Predicate.forEach(pre => {
+                let position = pre["$"].Target.split("[")[0];
+                let component = datatype.Component.find(
+                  c => c["$"].position === position
+                );
+                if (component) {
+                  component["$"].predicate = pre.Description[0];
+                  //TODO: update usage to C(R/X)
+                }
+              });
+            }
+          });
+        }
+      }
+      //TODO: add for message
+      if (profile.predicates.Message) {
+        let predicates = profile.predicates.Message[0].ByID.find(
+          m => m["$"].ID === profile.id
+        );
+        if (predicates) {
+          predicates.Predicate.forEach(predicate => {
+            this.populateMessagePredicate(predicate, profile.profile, null);
 
+            // let datatype = profile.datatypes.find(
+            //   dt => dt["$"].ID === predicate["$"].ID
+            // );
+            // if (datatype) {
+            //   predicate.Predicate.forEach(pre => {
+            //     let position = pre["$"].Target.split("[")[0];
+            //     let component = datatype.Component.find(
+            //       c => c["$"].position === position
+            //     );
+            //     if (component) {
+            //       component["$"].predicate = pre.Description[0];
+            //       //TODO: update usage to C(R/X)
+            //     }
+            //   });
+            // }
+          });
+          console.log(profile.profile.Group[2].Group[1].Segment[0]);
+        }
+      }
+    }
+  },
+  populateMessagePredicate: function(predicate, profile, path) {
+    if (!path) {
+      path = [];
+      let target = predicate["$"].Target;
+
+      if (target) {
+        path = target.split(".");
+        path = path.map(p => p.split("[")[0]);
+      }
+    }
+    console.log("sssss", path);
+
+    if (path.length === 1) {
+      let segment = profile.Segment.find(s => s["$"].position === path[0]);
+      if (segment) {
+        segment["$"].predicate = predicate.Description[0];
+      } else {
+        let group = profile.Group.find(g => g["$"].position === path[0]);
+        if (group) {
+          group["$"].predicate = predicate.Description[0];
+        }
+      }
+    } else if (path.length > 1) {
+      let group = profile.Group.find(g => g["$"].position === path[0]);
+      if (group) {
+        path.splice(0, 1);
+        this.populateMessagePredicate(predicate, group, path);
+      } else {
+        console.log("Field predicate", path);
+      }
+    }
+
+    // console.log(predicate)
+  },
   populatePosition: function(profile) {
     let position = 1;
     if (profile["$$"]) {
@@ -301,6 +437,7 @@ let DifferentialService = {
             return s["$"].Ref === element["$"].Ref;
           });
           seg["$"].position = position.toString();
+          position++;
         }
         if (element["#name"] === "Group") {
           let grp = profile.Group.find(g => {
@@ -308,20 +445,22 @@ let DifferentialService = {
           });
           grp["$"].position = position.toString();
           this.populatePosition(grp);
+          position++;
         }
         if (element["#name"] === "Field") {
           let seg = profile.Field.find(s => {
             return s["$"].Name === element["$"].Name;
           });
           seg["$"].position = position.toString();
+          position++;
         }
         if (element["#name"] === "Component") {
           let seg = profile.Component.find(s => {
             return s["$"].Name === element["$"].Name;
           });
           seg["$"].position = position.toString();
+          position++;
         }
-        position++;
       });
     }
   }
