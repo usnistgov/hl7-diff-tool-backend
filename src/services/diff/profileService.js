@@ -220,6 +220,11 @@ let ProfileService = {
             valuesetsMap
           )
         ],
+        conformanceStatements: [
+          ...SegmentService.populateConformanceStatements(
+            segmentsMap[igId][segRef["$"].iDSeg].conformanceStatements
+          )
+        ],
         fieldReasons: segmentsMap[igId][segRef["$"].iDSeg].fieldReasons,
         bindings: [
           ...ValuesetService.populateSrcValuesets(

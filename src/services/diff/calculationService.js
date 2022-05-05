@@ -93,6 +93,10 @@ let CalculationService = {
           profile.ConformanceProfile[0].Binding,
           configuration,
           valuesetsMap
+        ),
+        conformanceStatements: this.extractConformanceStatements(
+          confProfile.Constraints[0].ConformanceStatement,
+          configuration
         )
       });
       // });
@@ -159,6 +163,8 @@ let CalculationService = {
         this.spreadBindings(segmentRef.children, segmentRef.bindings);
         child.children = segmentRef.children;
         child.bindings = segmentRef.bindings;
+        child.conformanceStatements = segmentRef.conformanceStatements;
+
         child.fieldReasons = segmentRef.fieldReasons;
         child.changed = segmentRef.changed;
         child.data.changed = segmentRef.changed;
@@ -166,6 +172,23 @@ let CalculationService = {
       this.spreadProfileBindings(profile.children, profile.bindings);
     });
 
+    return results;
+  },
+
+  extractConformanceStatements(conformanceStatements, configuration) {
+    let results = [];
+    if (conformanceStatements) {
+      conformanceStatements.forEach(conformanceStatement => {
+        let diff = {
+          id: conformanceStatement["$"].identifier,
+          description: {
+            src: { value: conformanceStatement["$"].description },
+            derived: {}
+          }
+        };
+        results.push(diff);
+      });
+    }
     return results;
   },
   extractProfileBindings(igId, Binding, configuration, valuesetsMap) {
@@ -515,6 +538,12 @@ let CalculationService = {
             configuration,
             valuesetsMap
           );
+          this.createConfStatementsDiff(
+            derivedIg.id,
+            originalProfile,
+            confProfile,
+            configuration
+          );
 
           this.createProfileSegmentsDiff(
             diff,
@@ -535,6 +564,30 @@ let CalculationService = {
         // );
       }
       // });
+    }
+  },
+  createConfStatementsDiff(
+    derivedIgId,
+    originalProfile,
+    derivedProfile,
+    configuration
+  ) {
+    if (derivedProfile.Constraints && configuration.conformanceStatement) {
+      let conformanceStatements = [];
+      if(derivedProfile.Constraints && derivedProfile.Constraints[0]){
+        derivedProfile.Constraints[0].ConformanceStatement.forEach(conformanceStatement => {
+          conformanceStatements.push({
+            id: conformanceStatement['$'].identifier,
+            description: conformanceStatement['$'].description,
+
+          })
+        });
+      }
+      this.compareConformanceStatements(
+        originalProfile,
+        derivedIgId,
+        conformanceStatements,
+      );
     }
   },
   createProfileBindingsDiff(
@@ -684,6 +737,14 @@ let CalculationService = {
           originalProfile
         );
       }
+      if (configuration.conformanceStatement) {
+        this.compareConformanceStatements(
+          sourceSegment,
+          derivedIgId,
+          derivedSegment.conformanceStatements,
+   
+        );
+      }
 
       if (sourceSegment.changed) {
         if (!sourceSegment.data.label.derived[derivedIgId]) {
@@ -694,6 +755,61 @@ let CalculationService = {
       }
       sourceSegment.children.sort(function(a, b) {
         return a.data.position - b.data.position;
+      });
+    }
+  },
+  compareConformanceStatements(
+    differential,
+    derivedIgId,
+    derivedConfStatements,
+  ) {
+    if(differential.data.ref === 'MSH'){
+    console.log(differential, derivedConfStatements)
+      
+    }
+    if (derivedConfStatements) {
+      derivedConfStatements.forEach(derivedConfStatement => {
+        let confStatementDifferential = differential.conformanceStatements.find(
+          c => c.id === derivedConfStatement.id
+        );
+        if (confStatementDifferential) {
+          if (
+            confStatementDifferential.description.src.value !==
+            derivedConfStatement.description
+          ) {
+            // statement changed
+            confStatementDifferential.description.derived[derivedIgId] = {
+              value: derivedConfStatement.description,
+              status: "changed"
+            };
+          }
+        } else {
+          // statement added
+          let diff = {
+            id: derivedConfStatement.id,
+            description: {
+              src: {},
+              derived: {}
+            }
+          }
+          diff.description.derived[derivedIgId] = {
+            value: derivedConfStatement.description,
+            status: "added"
+          };
+          differential.conformanceStatements.push(diff)
+        }
+      });
+      differential.conformanceStatements.forEach(conformanceStatement => {
+        let confStatementDifferential = derivedConfStatements.find(
+          c => c.id === conformanceStatement.id
+        );
+        if (!confStatementDifferential) {
+          //statement deleted
+          conformanceStatement.description.derived[derivedIgId] = {
+            value: conformanceStatement.description.src.value,
+            status: "deleted"
+          };
+        }
       });
     }
   },
@@ -764,7 +880,10 @@ let CalculationService = {
 
           derivedBinding.valuesets.forEach((vs, i) => {
             // TODO: check why vs doesn't exist in xml file
-            if (valuesetsMap[srcIgId][vs] && bindingDifferential.data.valuesets.src.value) {
+            if (
+              valuesetsMap[srcIgId][vs] &&
+              bindingDifferential.data.valuesets.src.value
+            ) {
               const srcVs = bindingDifferential.data.valuesets.src.value.find(
                 v => {
                   return (
@@ -995,7 +1114,7 @@ let CalculationService = {
             fieldDifferential.data.changed = true;
 
             fieldDifferential.data.predicate.derived[derivedIgId] = {
-              value: derivedField.predicate,
+              value: derivedField.predicate
             };
           }
         }
@@ -1265,7 +1384,6 @@ let CalculationService = {
             differential.data.predicate.derived[derivedIgId] = {
               value: derivedComponent.predicate
             };
-          
           }
         }
         if (configuration.datatype) {

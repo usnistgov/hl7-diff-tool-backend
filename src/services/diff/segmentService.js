@@ -27,6 +27,19 @@ let SegmentService = {
         label: segment["$"].label,
         children: this.extractFields(segment.Fields[0].Field)
       };
+      if (segment.Constraints && segment.Constraints[0] && segment.Constraints[0].ConformanceStatement) {
+        let conformanceStatements = [];
+        segment.Constraints[0].ConformanceStatement.forEach(
+          conformanceStatement => {
+            let diff = {
+              id: conformanceStatement["$"].identifier,
+              description: conformanceStatement["$"].description
+            };
+            conformanceStatements.push(diff);
+          }
+        );
+        result.conformanceStatements = conformanceStatements;
+      }
       if (segment.Reasons && segment.Reasons[0] && segment.Reasons[0].Reason) {
         let reasonsMap = {};
         const reasonsForChange = segment.Reasons[0].Reason;
@@ -66,7 +79,22 @@ let SegmentService = {
     }
     return result;
   },
-
+  populateConformanceStatements: function( conformanceStatements) {
+    let results = [];
+    if (conformanceStatements) {
+      conformanceStatements.forEach(conformanceStatement => {
+        let diff = {
+          id: conformanceStatement.id,
+          description: {
+            src: { value: conformanceStatement.description },
+            derived: {}
+          }
+        };
+        results.push(diff);
+      });
+    }
+    return results;
+  },
   populateSrcFields: function(
     igId,
     fields,
@@ -98,7 +126,6 @@ let SegmentService = {
         };
       }
       if (configuration.predicate) {
-       
         fieldDifferential.data.predicate = {
           src: {
             value: field.predicate

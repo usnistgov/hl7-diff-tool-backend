@@ -28,6 +28,22 @@ let DatatypeService = {
         label: datatype["$"].label,
         children: this.extractComponents(datatype.Component)
       };
+
+      if (datatype.Constraints && datatype.Constraints[0] && datatype.Constraints[0].ConformanceStatement) {
+        let conformanceStatements = [];
+        datatype.Constraints[0].ConformanceStatement.forEach(
+          conformanceStatement => {
+            let diff = {
+              id: conformanceStatement["$"].identifier,
+              description: conformanceStatement["$"].description
+            };
+            conformanceStatements.push(diff);
+          }
+        );
+        result.conformanceStatements = conformanceStatements;
+      }
+
+
       if (datatype.Reasons && datatype.Reasons[0] && datatype.Reasons[0].Reason) {
         let reasonsMap = {};
         const reasonsForChange = datatype.Reasons[0].Reason;
