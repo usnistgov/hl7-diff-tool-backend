@@ -1,4 +1,4 @@
-FROM node:12
+FROM node:18
 
 RUN mkdir /usr/local/pact_backend
 WORKDIR /usr/local/pact_backend
