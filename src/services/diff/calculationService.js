@@ -180,10 +180,12 @@ let CalculationService = {
     if (conformanceStatements) {
       conformanceStatements.forEach(conformanceStatement => {
         let diff = {
-          id: conformanceStatement["$"].identifier,
-          description: {
-            src: { value: conformanceStatement["$"].description },
-            derived: {}
+          data: {
+            id: conformanceStatement["$"].identifier,
+            description: {
+              src: { value: conformanceStatement["$"].description },
+              derived: {}
+            }
           }
         };
         results.push(diff);
@@ -574,19 +576,20 @@ let CalculationService = {
   ) {
     if (derivedProfile.Constraints && configuration.conformanceStatement) {
       let conformanceStatements = [];
-      if(derivedProfile.Constraints && derivedProfile.Constraints[0]){
-        derivedProfile.Constraints[0].ConformanceStatement.forEach(conformanceStatement => {
-          conformanceStatements.push({
-            id: conformanceStatement['$'].identifier,
-            description: conformanceStatement['$'].description,
-
-          })
-        });
+      if (derivedProfile.Constraints && derivedProfile.Constraints[0]) {
+        derivedProfile.Constraints[0].ConformanceStatement.forEach(
+          conformanceStatement => {
+            conformanceStatements.push({
+              id: conformanceStatement["$"].identifier,
+              description: conformanceStatement["$"].description
+            });
+          }
+        );
       }
       this.compareConformanceStatements(
         originalProfile,
         derivedIgId,
-        conformanceStatements,
+        conformanceStatements
       );
     }
   },
@@ -741,8 +744,7 @@ let CalculationService = {
         this.compareConformanceStatements(
           sourceSegment,
           derivedIgId,
-          derivedSegment.conformanceStatements,
-   
+          derivedSegment.conformanceStatements
         );
       }
 
@@ -761,54 +763,57 @@ let CalculationService = {
   compareConformanceStatements(
     differential,
     derivedIgId,
-    derivedConfStatements,
+    derivedConfStatements
   ) {
-    if(differential.data.ref === 'MSH'){
-    console.log(differential, derivedConfStatements)
-      
-    }
     if (derivedConfStatements) {
       derivedConfStatements.forEach(derivedConfStatement => {
         let confStatementDifferential = differential.conformanceStatements.find(
-          c => c.id === derivedConfStatement.id
+          c => c.data.id === derivedConfStatement.id
         );
         if (confStatementDifferential) {
           if (
-            confStatementDifferential.description.src.value !==
+            confStatementDifferential.data.description.src.value !==
             derivedConfStatement.description
           ) {
             // statement changed
-            confStatementDifferential.description.derived[derivedIgId] = {
+            confStatementDifferential.data.description.derived[derivedIgId] = {
               value: derivedConfStatement.description,
               status: "changed"
             };
+            confStatementDifferential.data.changed = true;
           }
         } else {
           // statement added
           let diff = {
-            id: derivedConfStatement.id,
-            description: {
-              src: {},
-              derived: {}
+            data: {
+              id: derivedConfStatement.id,
+              description: {
+                src: {},
+                derived: {}
+              }
             }
-          }
-          diff.description.derived[derivedIgId] = {
+          
+          };
+          diff.data.description.derived[derivedIgId] = {
             value: derivedConfStatement.description,
             status: "added"
           };
-          differential.conformanceStatements.push(diff)
+          diff.data.changed = true;
+          differential.conformanceStatements.push(diff);
         }
       });
       differential.conformanceStatements.forEach(conformanceStatement => {
         let confStatementDifferential = derivedConfStatements.find(
-          c => c.id === conformanceStatement.id
+          c => c.id === conformanceStatement.data.id
         );
         if (!confStatementDifferential) {
           //statement deleted
-          conformanceStatement.description.derived[derivedIgId] = {
-            value: conformanceStatement.description.src.value,
+
+          conformanceStatement.data.description.derived[derivedIgId] = {
+            value: conformanceStatement.data.description.src.value,
             status: "deleted"
           };
+          conformanceStatement.data.changed = true;
         }
       });
     }

@@ -84,11 +84,14 @@ let SegmentService = {
     if (conformanceStatements) {
       conformanceStatements.forEach(conformanceStatement => {
         let diff = {
-          id: conformanceStatement.id,
-          description: {
-            src: { value: conformanceStatement.description },
-            derived: {}
+          data: {
+            id: conformanceStatement.id,
+            description: {
+              src: { value: conformanceStatement.description },
+              derived: {}
+            }
           }
+      
         };
         results.push(diff);
       });

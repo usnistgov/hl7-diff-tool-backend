@@ -17,7 +17,7 @@ module.exports = {
     cardinality: "Cardinality",
     datatype: "Data type",
     valueset: "Value set",
-    predicate: "Predicate"
-
+    predicate: "Predicate",
+    conformanceStatement: "Conformance statement"
   }
 };
