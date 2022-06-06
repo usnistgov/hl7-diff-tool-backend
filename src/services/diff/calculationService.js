@@ -515,14 +515,8 @@ let CalculationService = {
   ) {
     if (derivedIg.profiles) {
       const profile = derivedIg.profiles[0];
-      // derivedIg.profiles.forEach((profile, i) => {
       const confProfile = profile.ConformanceProfile[0];
       if (confProfile) {
-        // const originalProfileId = confProfile["$"].origin;
-
-        // const originalProfile = diff.profiles.find(
-        //   p => p.data.id === originalProfileId
-        // );
         const originalProfile = diff.profiles[0];
         if (originalProfile) {
           this.createProfileDiff(
@@ -792,7 +786,6 @@ let CalculationService = {
                 derived: {}
               }
             }
-          
           };
           diff.data.description.derived[derivedIgId] = {
             value: derivedConfStatement.description,
@@ -1062,6 +1055,7 @@ let CalculationService = {
     datatypesMap,
     valuesetsMap
   ) {
+   
     derivedFields.forEach(derivedField => {
       let fieldDifferential = segmentDifferential.children.find(
         c => c.data.position === derivedField.position
@@ -1071,7 +1065,7 @@ let CalculationService = {
         // if(segmentDifferential.data.ref === 'PID'){
         //   console.log(derivedField.position, derivedField.usage , fieldDifferential.data.usage.src.value, derivedField.usage != fieldDifferential.data.usage.src.value)
         // }
-
+       
         if (reasons && reasons[fieldDifferential.data.position]) {
           if (!fieldDifferential.data.reason) {
             fieldDifferential.data.reason = {};
@@ -1082,10 +1076,14 @@ let CalculationService = {
           fieldDifferential.data.reason[derivedIgId] =
             reasons[fieldDifferential.data.position];
         }
+        if (segmentDifferential.data.ref === "MSH" && derivedField.position === '1') {
+          console.log("00000", fieldDifferential.data.usage.src.value);
+        }
         if (
           configuration.usage &&
           derivedField.usage != fieldDifferential.data.usage.src.value
         ) {
+          
           if (!fieldDifferential.data.usage.derived[derivedIgId]) {
             segmentDifferential.changed = true;
             segmentDifferential.data.changed = true;
@@ -1564,7 +1562,6 @@ let CalculationService = {
   createSegRefsDiff(originalId, originalProfile, segRefs, configuration) {
     if (segRefs) {
       if (originalProfile) {
-        // console.log(originalProfile.children)
         segRefs.forEach(segRef => {
           let originalSegRef = originalProfile.children.find(
             p => p.data.position === segRef["$"].position
