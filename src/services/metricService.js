@@ -332,6 +332,7 @@ let MetricService = {
         result = "error";
       }
     }
+
     switch (srcUsage) {
       case "R":
         if (derivedUsage.startsWith("C")) {

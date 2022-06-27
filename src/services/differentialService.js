@@ -220,96 +220,97 @@ let DifferentialService = {
     const ctFiles = await Promise.all(ctPromises);
     const derivedProfiles = await Promise.all(derivedProfilesPromises);
 
-
     for (const key in files) {
-      const index = key.slice(2);
-      const derivedProfileId = req.body[`derivedProfile${index}`];
-      const result = derivedProfiles[index]
-      if (
-        result &&
-        result.ConformanceProfile &&
-        result.ConformanceProfile.Messages &&
-        result.ConformanceProfile.Messages[0] &&
-        result.ConformanceProfile.Messages[0].Message
-      ) {
-        let derivedIg = {
-          ig: result.ConformanceProfile.MetaData[0]["$"].Name,
-          id: derivedProfileId
-        };
-        const selectedProfile = result.ConformanceProfile.Messages[0].Message.find(
-          m => m["$"].ID === derivedProfileId
-        );
-        if (selectedProfile) {
-          derivedIg.profile = selectedProfile;
-          self.populatePosition(derivedIg.profile);
-        } else {
-          return res
-            .status(500)
-            .send({ message: "Profile selected not found" });
-        }
+      if (key.startsWith("ig")) {
+        const index = key.slice(2);
+        const derivedProfileId = req.body[`derivedProfile${index}`];
+        const result = derivedProfiles[index];
         if (
-          result.ConformanceProfile.Segments &&
-          result.ConformanceProfile.Segments[0]
+          result &&
+          result.ConformanceProfile &&
+          result.ConformanceProfile.Messages &&
+          result.ConformanceProfile.Messages[0] &&
+          result.ConformanceProfile.Messages[0].Message
         ) {
-          derivedIg.segments = result.ConformanceProfile.Segments[0].Segment;
-          derivedIg.segments.forEach(seg => {
-            self.populatePosition(seg);
-          });
-        }
-        if (
-          result.ConformanceProfile.Datatypes &&
-          result.ConformanceProfile.Datatypes[0]
-        ) {
-          derivedIg.datatypes = result.ConformanceProfile.Datatypes[0].Datatype;
-          derivedIg.datatypes.forEach(dt => {
-            self.populatePosition(dt);
-          });
-        }
-        if (vsFiles[index]) {
-          derivedIg.valuesets = [];
-          if (vsFiles[index].ValueSetLibrary.ValueSetDefinitions) {
-            vsFiles[index].ValueSetLibrary.ValueSetDefinitions.forEach(list => {
-              derivedIg.valuesets.push(...list.ValueSetDefinition);
+          let derivedIg = {
+            ig: result.ConformanceProfile.MetaData[0]["$"].Name,
+            id: derivedProfileId
+          };
+          const selectedProfile = result.ConformanceProfile.Messages[0].Message.find(
+            m => m["$"].ID === derivedProfileId
+          );
+          if (selectedProfile) {
+            derivedIg.profile = selectedProfile;
+            self.populatePosition(derivedIg.profile);
+          } else {
+            return res
+              .status(500)
+              .send({ message: "Profile selected not found" });
+          }
+          if (
+            result.ConformanceProfile.Segments &&
+            result.ConformanceProfile.Segments[0]
+          ) {
+            derivedIg.segments = result.ConformanceProfile.Segments[0].Segment;
+            derivedIg.segments.forEach(seg => {
+              self.populatePosition(seg);
             });
           }
-        }
-        if (ctFiles[index]) {
-          derivedIg.predicates = [];
-          derivedIg.constraints = [];
-          if (ctFiles[index].ConformanceContext.Predicates) {
-            derivedIg.predicates =
-              ctFiles[index].ConformanceContext.Predicates[0];
+          if (
+            result.ConformanceProfile.Datatypes &&
+            result.ConformanceProfile.Datatypes[0]
+          ) {
+            derivedIg.datatypes = result.ConformanceProfile.Datatypes[0].Datatype;
+            derivedIg.datatypes.forEach(dt => {
+              self.populatePosition(dt);
+            });
           }
-          if (ctFiles[index].ConformanceContext.Constraints) {
-            derivedIg.constraints =
-              ctFiles[index].ConformanceContext.Constraints[0];
+          if (vsFiles[index]) {
+            derivedIg.valuesets = [];
+            if (vsFiles[index].ValueSetLibrary.ValueSetDefinitions) {
+              vsFiles[index].ValueSetLibrary.ValueSetDefinitions.forEach(list => {
+                derivedIg.valuesets.push(...list.ValueSetDefinition);
+              });
+            }
           }
-          self.populatePredicates(derivedIg);
+          if (ctFiles[index]) {
+            derivedIg.predicates = [];
+            derivedIg.constraints = [];
+            if (ctFiles[index].ConformanceContext.Predicates) {
+              derivedIg.predicates =
+                ctFiles[index].ConformanceContext.Predicates[0];
+            }
+            if (ctFiles[index].ConformanceContext.Constraints) {
+              derivedIg.constraints =
+                ctFiles[index].ConformanceContext.Constraints[0];
+            }
+            self.populatePredicates(derivedIg);
+          }
+          // for (
+          //   let index = 0;
+          //   index < result.Document.Section[0].Section.length;
+          //   index++
+          // ) {
+          //   const section = result.Document.Section[0].Section[index];
+  
+          //   if (section["$"].type === "CONFORMANCEPROFILEREGISTRY") {
+          //     derivedIg.profiles = section.Section;
+          //   }
+          //   if (section["$"].type === "SEGMENTREGISTRY") {
+          //     derivedIg.segments = section.Section;
+          //   }
+          //   if (section["$"].type === "DATATYPEREGISTRY") {
+          //     derivedIg.datatypes = section.Section;
+          //   }
+          //   if (section["$"].type === "VALUESETREGISTRY") {
+          //     derivedIg.valuesets = section.Section;
+          //   }
+          // }
+          derivedIgs.push(derivedIg);
         }
-        // for (
-        //   let index = 0;
-        //   index < result.Document.Section[0].Section.length;
-        //   index++
-        // ) {
-        //   const section = result.Document.Section[0].Section[index];
-
-        //   if (section["$"].type === "CONFORMANCEPROFILEREGISTRY") {
-        //     derivedIg.profiles = section.Section;
-        //   }
-        //   if (section["$"].type === "SEGMENTREGISTRY") {
-        //     derivedIg.segments = section.Section;
-        //   }
-        //   if (section["$"].type === "DATATYPEREGISTRY") {
-        //     derivedIg.datatypes = section.Section;
-        //   }
-        //   if (section["$"].type === "VALUESETREGISTRY") {
-        //     derivedIg.valuesets = section.Section;
-        //   }
-        // }
-        derivedIgs.push(derivedIg);
       }
+
     }
-   
     const data = ValidationCalculationService.calculate(
       sourceProfile,
       derivedIgs,
@@ -388,7 +389,6 @@ let DifferentialService = {
             //   });
             // }
           });
-          console.log(profile.profile.Group[2].Group[1].Segment[0]);
         }
       }
     }
@@ -403,7 +403,6 @@ let DifferentialService = {
         path = path.map(p => p.split("[")[0]);
       }
     }
-    console.log("sssss", path);
 
     if (path.length === 1) {
       let segment = profile.Segment.find(s => s["$"].position === path[0]);

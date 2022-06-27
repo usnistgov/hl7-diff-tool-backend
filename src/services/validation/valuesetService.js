@@ -89,6 +89,19 @@ let ValuesetService = {
           });
         }
       });
+      src.forEach(code => {
+        const c = derived.find(
+          x => x.codeSystem === code.codeSystem && x.value === code.value
+        );
+        if (!c) {
+          //code deleted
+          codes.changed = true;
+          codes.list.push({
+            ...code,
+            status: "deleted"
+          });
+        }
+      });
     }
     return codes;
   },
@@ -201,7 +214,6 @@ let ValuesetService = {
     if (valuesets) {
       let list = valuesets.split(":");
       list.forEach((valueset, i) => {
-   
         result.push({
           bindingIdentifier: valueset,
           codes: this.getCodes(valueset, valuesetsMap, igId)
@@ -219,67 +231,69 @@ let ValuesetService = {
     derivedIgId,
     valuesetsMap
   ) {
-   
     if (fieldDifferential.data.bindings && fieldDifferential.data.bindings[0]) {
       let bindingDiff = fieldDifferential.data.bindings[0];
-      let strength = this.translateStrength(derivedField.bindingStrength);
-      if (bindingDiff.data.strength.src.value !== strength) {
-        bindingDiff.changed = true;
-        bindingDiff.data.changed = true;
-
-        fieldDifferential.changed = true;
-        fieldDifferential.data.changed = true;
-        segmentDifferential.changed = true;
-        segmentDifferential.data.changed = true;
-        const compliance = MetricService.updateBindingMetrics(
-          derivedIgId,
-          originalProfile,
-          "strength"
-        );
-        bindingDiff.data.strength.derived[derivedIgId] = {
-          value: strength,
-          compliance
-        };
-      }
-
-      const derivedLocations = this.extractLocationsValidation(
-        derivedField.bindingLocation
-      );
-      const locationsDiff = _.difference(
-        derivedLocations,
-        bindingDiff.data.locations.src.value
-      );
-
-      if (locationsDiff && locationsDiff.length > 0) {
-        if (!bindingDiff.data.locations.derived[derivedIgId]) {
+      if (derivedField.binding) {
+        let strength = this.translateStrength(derivedField.bindingStrength);
+        if (bindingDiff.data.strength.src.value !== strength) {
           bindingDiff.changed = true;
           bindingDiff.data.changed = true;
-          segmentDifferential.changed = true;
-          segmentDifferential.data.changed = true;
+
           fieldDifferential.changed = true;
           fieldDifferential.data.changed = true;
+          segmentDifferential.changed = true;
+          segmentDifferential.data.changed = true;
           const compliance = MetricService.updateBindingMetrics(
             derivedIgId,
             originalProfile,
-            "location"
+            "strength"
           );
-          bindingDiff.data.locations.derived[derivedIgId] = {
-            value: derivedLocations,
+          bindingDiff.data.strength.derived[derivedIgId] = {
+            value: strength,
             compliance
           };
         }
-      }
 
-      const valuesets = this.extractVSValidation(
-        derivedField.binding,
-        valuesetsMap,
-        derivedIgId
-      );
-      if (valuesets) {
+        const derivedLocations = this.extractLocationsValidation(
+          derivedField.bindingLocation
+        );
+        const locationsDiff = _.difference(
+          derivedLocations,
+          bindingDiff.data.locations.src.value
+        );
+
+        if (locationsDiff && locationsDiff.length > 0) {
+          if (!bindingDiff.data.locations.derived[derivedIgId]) {
+            bindingDiff.changed = true;
+            bindingDiff.data.changed = true;
+            segmentDifferential.changed = true;
+            segmentDifferential.data.changed = true;
+            fieldDifferential.changed = true;
+            fieldDifferential.data.changed = true;
+            const compliance = MetricService.updateBindingMetrics(
+              derivedIgId,
+              originalProfile,
+              "location"
+            );
+            bindingDiff.data.locations.derived[derivedIgId] = {
+              value: derivedLocations,
+              compliance
+            };
+          }
+        }
+
+        const valuesets = this.extractVSValidation(
+          derivedField.binding,
+          valuesetsMap,
+          derivedIgId
+        );
+
         valuesets.forEach((valueset, i) => {
           let vs = valueset.bindingIdentifier;
+
           if (
-            valuesetsMap[srcIgId] && valuesetsMap[srcIgId][vs] &&
+            valuesetsMap[derivedIgId] &&
+            valuesetsMap[derivedIgId][vs] &&
             bindingDiff.data.valuesets.src.value
           ) {
             const srcVs = bindingDiff.data.valuesets.src.value.find(v => {
@@ -290,7 +304,7 @@ let ValuesetService = {
               // compare codes
 
               const comparedCodes = this.compareCodes(
-                valuesetsMap[srcIgId][vs].children,
+                valuesetsMap[srcIgId][srcVs.bindingIdentifier].children,
                 valuesetsMap[derivedIgId][vs].children
               );
 
@@ -303,9 +317,11 @@ let ValuesetService = {
                 segmentDifferential.data.changed = true;
                 bindingDiff.changed = true;
                 bindingDiff.data.changed = true;
+                bindingDiff.data.showCodes = true;
                 fieldDifferential.changed = true;
                 fieldDifferential.data.changed = true;
                 diff.status = "changed";
+
                 diff.codes = comparedCodes.list;
                 const compliance = MetricService.updateBindingMetrics(
                   derivedIgId,
@@ -340,6 +356,7 @@ let ValuesetService = {
               fieldDifferential.data.changed = true;
               bindingDiff.changed = true;
               bindingDiff.data.changed = true;
+              bindingDiff.data.showCodes = true;
               const compliance = MetricService.updateBindingMetrics(
                 derivedIgId,
                 originalProfile,
@@ -360,10 +377,68 @@ let ValuesetService = {
             }
           }
         });
+        if(bindingDiff.data.valuesets.src.value){
+          bindingDiff.data.valuesets.src.value.forEach(valueset => {
+            let vs = valuesets.find(v => {
+              return v.bindingIdentifier === valueset.bindingIdentifier
+            })
+            if(!vs){
+              //vs removed from binding
+              segmentDifferential.changed = true;
+              segmentDifferential.data.changed = true;
+              fieldDifferential.changed = true;
+              fieldDifferential.data.changed = true;
+              bindingDiff.changed = true;
+              bindingDiff.data.changed = true;
+              bindingDiff.data.showCodes = true;
+              if (!bindingDiff.data.valuesets.derived[derivedIgId]) {
+                bindingDiff.data.valuesets.derived[derivedIgId] = {
+                  value: [],
+                };
+              }
+              bindingDiff.data.valuesets.derived[derivedIgId].value.push({
+                bindingIdentifier: valueset.bindingIdentifier,
+                codes: valuesetsMap[srcIgId] ? valuesetsMap[srcIgId][valueset.bindingIdentifier].children : [],
+                status: "deleted"
+              });
+            }
+          });
+        }
+
+      } else {
+        //binding removed
+        // TODO: update compliance
+        segmentDifferential.changed = true;
+        segmentDifferential.data.changed = true;
+        fieldDifferential.changed = true;
+        fieldDifferential.data.changed = true;
+
+        bindingDiff.changed = true;
+        bindingDiff.data.changed = true;
+        if (!bindingDiff.data.derived) {
+          bindingDiff.data.derived = {};
+        }
+        bindingDiff.data.derived[derivedIgId] = {
+          status: "deleted"
+        };
+        bindingDiff.data.locations.derived[derivedIgId] = {
+          value: bindingDiff.data.locations.src.value,
+          status: "deleted"
+        };
+        bindingDiff.data.strength.derived[derivedIgId] = {
+          value: bindingDiff.data.strength.src.value,
+          status: "deleted"
+        };
+        bindingDiff.data.valuesets.derived[derivedIgId] = {
+          value: bindingDiff.data.valuesets.src.value,
+          status: "deleted"
+        };
       }
     } else {
       if (derivedField.binding) {
         // Added binding
+        // TODO: update compliance
+
         segmentDifferential.changed = true;
         segmentDifferential.data.changed = true;
         fieldDifferential.changed = true;
@@ -371,6 +446,7 @@ let ValuesetService = {
         let newBindingDifferential = {
           data: {
             status: "added",
+            showCodes: true,
             changed: true,
             locations: {
               src: {},

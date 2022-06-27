@@ -55,9 +55,7 @@ let DatatypeService = {
     let result = [];
     if (components) {
       components.forEach(component => {
-        if(component.predicate){
-          console.log("000000")
-        }
+    
         result.push({
           name: component['$'].Name,
           usage: component['$'].Usage,
@@ -91,7 +89,12 @@ let DatatypeService = {
       currentPath += `.${component.position}`;
       let componentDifferential = {
         data: {
-          name: component.name,
+          name: {
+            src: {
+              value: component.name
+            },
+            derived: {}
+          },
           position: component.position,
           type: level === 1 ? "component" : "subcomponent",
           path: currentPath

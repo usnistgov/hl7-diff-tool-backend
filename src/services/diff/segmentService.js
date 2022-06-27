@@ -112,7 +112,12 @@ let SegmentService = {
       currentPath += `.${field.position}`;
       let fieldDifferential = {
         data: {
-          name: field.name,
+          name: {
+            src: {
+              value: field.name
+            },
+            derived: {}
+          },
           position: field.position,
           type: "field",
           path: currentPath

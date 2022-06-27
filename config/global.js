@@ -16,8 +16,10 @@ module.exports = {
     usage: "Usage",
     cardinality: "Cardinality",
     datatype: "Data type",
+    segmentRef: "Segment Ref.",
     valueset: "Value set",
     predicate: "Predicate",
-    conformanceStatement: "Conformance statement"
+    conformanceStatement: "Conformance statement",
+    name: "Name"
   }
 };

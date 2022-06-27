@@ -52,7 +52,7 @@ let ComparisonService = {
         }
         original.changed = true;
         original.data.changed = true;
-
+     
         const compliance = MetricService.updateUsageMetrics(
           originalId,
           originalProfile,

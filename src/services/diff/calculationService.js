@@ -404,46 +404,48 @@ let CalculationService = {
   spreadDatatypeBindings(components, bindings, context) {
     bindings.forEach(binding => {
       if (binding.data.LocationInfoType === "COMPONENT") {
-        let component = components.find(
-          f => f.data.position === binding.data.position
-        );
-        if (component) {
-          if (context === "datatype_component") {
-            if (!component.data.bindings) {
-              component.data.bindings = [];
+        if (components) {
+          let component = components.find(
+            f => f.data.position === binding.data.position
+          );
+          if (component) {
+            if (context === "datatype_component") {
+              if (!component.data.bindings) {
+                component.data.bindings = [];
+              }
+              if (component.data.bindings.length === 0) {
+                component.data.bindings.push(binding);
+              } else {
+                if (!component.data.bindings[0].data.locations.src.value) {
+                  component.data.bindings[0].data.locations.src.value =
+                    binding.data.locations.src.value;
+                }
+                if (!component.data.bindings[0].data.strength.src.value) {
+                  component.data.bindings[0].data.strength.src.value =
+                    binding.data.strength.src.value;
+                }
+                if (!component.data.bindings[0].data.valuesets.src.value) {
+                  component.data.bindings[0].data.valuesets.src.value =
+                    binding.data.valuesets.src.value;
+                }
+                if (
+                  binding.data.codes.src &&
+                  binding.data.codes.src.value &&
+                  (!component.data.bindings[0].data.codes ||
+                    !component.data.bindings[0].data.codes.src.value)
+                ) {
+                  component.data.bindings[0].data.codes.src.value =
+                    binding.data.codes.src.value;
+                }
+              }
             }
-            if (component.data.bindings.length === 0) {
-              component.data.bindings.push(binding);
-            } else {
-              if (!component.data.bindings[0].data.locations.src.value) {
-                component.data.bindings[0].data.locations.src.value =
-                  binding.data.locations.src.value;
-              }
-              if (!component.data.bindings[0].data.strength.src.value) {
-                component.data.bindings[0].data.strength.src.value =
-                  binding.data.strength.src.value;
-              }
-              if (!component.data.bindings[0].data.valuesets.src.value) {
-                component.data.bindings[0].data.valuesets.src.value =
-                  binding.data.valuesets.src.value;
-              }
-              if (
-                binding.data.codes.src &&
-                binding.data.codes.src.value &&
-                (!component.data.bindings[0].data.codes ||
-                  !component.data.bindings[0].data.codes.src.value)
-              ) {
-                component.data.bindings[0].data.codes.src.value =
-                  binding.data.codes.src.value;
-              }
+            if (context === "datatype_field") {
+              component.data.bindings = this.overrideBinding(
+                component.data.bindings,
+                binding,
+                context
+              );
             }
-          }
-          if (context === "datatype_field") {
-            component.data.bindings = this.overrideBinding(
-              component.data.bindings,
-              binding,
-              context
-            );
           }
         }
       }
@@ -660,41 +662,44 @@ let CalculationService = {
           )
         );
       }
-
-      segmentRefs.forEach(segmentRef => {
-        const sourceSegment = originalProfile.segmentRefs.find(s => {
-          return s.data.path === segmentRef.data.path;
+      if(configuration.segmentRef){
+        segmentRefs.forEach(segmentRef => {
+          const sourceSegment = originalProfile.segmentRefs.find(s => {
+            return s.data.path === segmentRef.data.path;
+          });
+  
+          if (sourceSegment) {
+            // compare sourceSegment.data.idSeg && segmentRef.data.idSeg
+  
+            this.compareSegment(
+              originalProfile,
+              sourceSegment,
+              differential.srcIg.id,
+              derivedIgId,
+              segmentsMap[differential.srcIg.id][sourceSegment.data.idSeg],
+              segmentsMap[derivedIgId][segmentRef.data.idSeg],
+              configuration,
+              datatypesMap,
+              valuesetsMap
+            );
+          } else {
+            // new segmentref
+          }
         });
-
-        if (sourceSegment) {
-          // compare sourceSegment.data.idSeg && segmentRef.data.idSeg
-
-          this.compareSegment(
-            originalProfile,
-            sourceSegment,
-            differential.srcIg.id,
-            derivedIgId,
-            segmentsMap[differential.srcIg.id][sourceSegment.data.idSeg],
-            segmentsMap[derivedIgId][segmentRef.data.idSeg],
-            configuration,
-            datatypesMap,
-            valuesetsMap
-          );
-        } else {
-          // new segmentref
+        if (configuration.valueset) {
+          // this.compareBindings(
+          //   sourceSegment,
+          //   srcIgId,
+          //   derivedIgId,
+          //   derivedSegment.bindings,
+          //   configuration,
+          //   datatypesMap,
+          //   valuesetsMap
+          // );
         }
-      });
-      if (configuration.valueset) {
-        // this.compareBindings(
-        //   sourceSegment,
-        //   srcIgId,
-        //   derivedIgId,
-        //   derivedSegment.bindings,
-        //   configuration,
-        //   datatypesMap,
-        //   valuesetsMap
-        // );
       }
+
+    
     } else {
       // Can't compare
     }
@@ -812,7 +817,7 @@ let CalculationService = {
     }
   },
   compareBindings(
-    segmentDifferential,
+    differential,
     srcIgId,
     derivedIgId,
     derivedBindings,
@@ -820,9 +825,11 @@ let CalculationService = {
     context,
     originalProfile
   ) {
+    let changed = false;
+
     if (derivedBindings) {
       derivedBindings.forEach(derivedBinding => {
-        let bindingDifferential = segmentDifferential.bindings.find(
+        let bindingDifferential = differential.bindings.find(
           b => b.data && b.data.path === derivedBinding.path
         );
 
@@ -835,10 +842,11 @@ let CalculationService = {
             bindingDifferential.data.strength.src.value
           ) {
             if (!bindingDifferential.data.strength.derived[derivedIgId]) {
-              segmentDifferential.changed = true;
-              segmentDifferential.data.changed = true;
+              differential.changed = true;
+              differential.data.changed = true;
               bindingDifferential.changed = true;
               bindingDifferential.data.changed = true;
+              changed = true;
               const compliance = MetricService.updateBindingMetrics(
                 derivedIgId,
                 originalProfile,
@@ -860,10 +868,11 @@ let CalculationService = {
           );
           if (locationsDiff && locationsDiff.length > 0) {
             if (!bindingDifferential.data.locations.derived[derivedIgId]) {
-              segmentDifferential.changed = true;
-              segmentDifferential.data.changed = true;
+              differential.changed = true;
+              differential.data.changed = true;
               bindingDifferential.changed = true;
               bindingDifferential.data.changed = true;
+              changed = true;
               const compliance = MetricService.updateBindingMetrics(
                 derivedIgId,
                 originalProfile,
@@ -877,9 +886,9 @@ let CalculationService = {
           }
 
           derivedBinding.valuesets.forEach((vs, i) => {
-            // TODO: check why vs doesn't exist in xml file
             if (
-              valuesetsMap[srcIgId][vs] &&
+              valuesetsMap[derivedIgId] &&
+              valuesetsMap[derivedIgId][vs] &&
               bindingDifferential.data.valuesets.src.value
             ) {
               const srcVs = bindingDifferential.data.valuesets.src.value.find(
@@ -895,7 +904,7 @@ let CalculationService = {
                 // compare codes
 
                 const comparedCodes = ValuesetService.compareCodes(
-                  valuesetsMap[srcIgId][vs][derivedBinding.versions[i]]
+                  valuesetsMap[srcIgId][srcVs.bindingIdentifier][srcVs.version]
                     .children,
                   valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
                     .children
@@ -907,10 +916,12 @@ let CalculationService = {
                   status: "unchanged"
                 };
                 if (comparedCodes.changed) {
-                  segmentDifferential.changed = true;
-                  segmentDifferential.data.changed = true;
+                  differential.changed = true;
+                  differential.data.changed = true;
                   bindingDifferential.changed = true;
                   bindingDifferential.data.changed = true;
+                  bindingDifferential.data.showCodes = true;
+                  changed = true;
                   diff.status = "changed";
                   diff.codes = comparedCodes.list;
                   const compliance = MetricService.updateBindingMetrics(
@@ -949,11 +960,13 @@ let CalculationService = {
                     ].value.push(diff);
                 }
               } else {
-                // Value set binding added
-                segmentDifferential.changed = true;
-                segmentDifferential.data.changed = true;
+                // New Value set added to binding
+                differential.changed = true;
+                differential.data.changed = true;
                 bindingDifferential.changed = true;
                 bindingDifferential.data.changed = true;
+                bindingDifferential.data.showCodes = true;
+                changed = true;
                 const compliance = MetricService.updateBindingMetrics(
                   derivedIgId,
                   originalProfile,
@@ -971,21 +984,64 @@ let CalculationService = {
                 ].value.push({
                   bindingIdentifier: vs,
                   version: derivedBinding.versions[i],
-                  // codes:
-                  //   valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
-                  //     .children,
+                  codes:
+                    valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
+                      .children,
                   status: "added"
                 });
               }
             }
           });
+          if (bindingDifferential.data.valuesets.src.value) {
+            bindingDifferential.data.valuesets.src.value.forEach(valueset => {
+              let vs = derivedBinding.valuesets.find((v, i) => {
+                return (
+                  derivedBinding.versions[i] === valueset.version &&
+                  v === valueset.bindingIdentifier
+                );
+              });
+              if (!vs) {
+                //vs removed from binding
+                differential.changed = true;
+                differential.data.changed = true;
+                bindingDifferential.changed = true;
+                bindingDifferential.data.changed = true;
+                bindingDifferential.data.showCodes = true;
+                changed = true;
+                if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
+                  bindingDifferential.data.valuesets.derived[derivedIgId] = {
+                    value: []
+                  };
+                }
+
+                bindingDifferential.data.valuesets.derived[
+                  derivedIgId
+                ].value.push({
+                  bindingIdentifier: valueset.bindingIdentifier,
+                  codes:
+                    valuesetsMap[derivedIgId][valueset.bindingIdentifier] &&
+                    valuesetsMap[derivedIgId][valueset.bindingIdentifier][
+                      valueset.version
+                    ]
+                      ? valuesetsMap[derivedIgId][valueset.bindingIdentifier][
+                          valueset.version
+                        ].children
+                      : [],
+                  status: "deleted"
+                });
+              }
+            });
+          }
         } else {
-          //TODO: binding added
-          segmentDifferential.changed = true;
-          segmentDifferential.data.changed = true;
+          // Added binding
+          // TODO: update compliance
+          differential.changed = true;
+          differential.data.changed = true;
+          changed = true;
           let newBindingDifferential = {
             data: {
               status: "added",
+              showCodes: true,
               changed: true,
               position: derivedBinding.position,
               path: derivedBinding.path,
@@ -1035,13 +1091,45 @@ let CalculationService = {
               derivedIgId
             )
           };
-          if (!segmentDifferential.bindings) {
-            segmentDifferential.bindings = [];
+          if (!differential.bindings) {
+            differential.bindings = [];
           }
-          segmentDifferential.bindings.push(newBindingDifferential);
+          differential.bindings.push(newBindingDifferential);
+        }
+      });
+      differential.bindings.forEach(binding => {
+        let derivedBinding = derivedBindings.find(
+          b => binding.data && binding.data.path === b.path
+        );
+        if (!derivedBinding && binding.data.status !== "added") {
+          //binding removed
+          differential.changed = true;
+          differential.data.changed = true;
+          binding.changed = true;
+          binding.data.changed = true;
+          changed = true;
+          if (!binding.data.derived) {
+            binding.data.derived = {};
+          }
+          binding.data.derived[derivedIgId] = {
+            status: "deleted"
+          };
+          binding.data.locations.derived[derivedIgId] = {
+            value: binding.data.locations.src.value,
+            status: "deleted"
+          };
+          binding.data.strength.derived[derivedIgId] = {
+            value: binding.data.strength.src.value,
+            status: "deleted"
+          };
+          binding.data.valuesets.derived[derivedIgId] = {
+            value: binding.data.valuesets.src.value,
+            status: "deleted"
+          };
         }
       });
     }
+    return changed;
   },
 
   compareFields(
@@ -1055,172 +1143,345 @@ let CalculationService = {
     datatypesMap,
     valuesetsMap
   ) {
-   
-    derivedFields.forEach(derivedField => {
-      let fieldDifferential = segmentDifferential.children.find(
-        c => c.data.position === derivedField.position
-      );
-
-      if (fieldDifferential) {
-        // if(segmentDifferential.data.ref === 'PID'){
-        //   console.log(derivedField.position, derivedField.usage , fieldDifferential.data.usage.src.value, derivedField.usage != fieldDifferential.data.usage.src.value)
-        // }
-       
-        if (reasons && reasons[fieldDifferential.data.position]) {
-          if (!fieldDifferential.data.reason) {
-            fieldDifferential.data.reason = {};
-          }
-          if (!fieldDifferential.data.reason[derivedIgId]) {
-            fieldDifferential.data.reason[derivedIgId] = {};
-          }
-          fieldDifferential.data.reason[derivedIgId] =
-            reasons[fieldDifferential.data.position];
-        }
-        if (segmentDifferential.data.ref === "MSH" && derivedField.position === '1') {
-          console.log("00000", fieldDifferential.data.usage.src.value);
-        }
-        if (
-          configuration.usage &&
-          derivedField.usage != fieldDifferential.data.usage.src.value
-        ) {
-          
-          if (!fieldDifferential.data.usage.derived[derivedIgId]) {
-            segmentDifferential.changed = true;
-            segmentDifferential.data.changed = true;
-            fieldDifferential.changed = true;
-            fieldDifferential.data.changed = true;
-
-            const compliance = MetricService.updateUsageMetrics(
-              derivedIgId,
-              originalProfile,
-              fieldDifferential.data.usage.src.value,
-              derivedField.usage,
-              `${segmentDifferential.data.ref}.${derivedField.position}`,
-              fieldDifferential.data,
-              `${segmentDifferential.data.path}.${derivedField.position}`
-            );
+    if (derivedFields.length >= segmentDifferential.children.length) {
+      // New field may have been added. Need to check if the field from segmentDifferential was in the src profile or was added from a comparison of another derived profile (check for .added field)
+      derivedFields.forEach(derivedField => {
+        let fieldDifferential = segmentDifferential.children.find(
+          c => c.data.position === derivedField.position
+        );
+        if (fieldDifferential) {
+          if (fieldDifferential.data.added) {
+            // field wasn't in the src profile but was added in a previous comparison
+            fieldDifferential.data.name.derived[derivedIgId] = {
+              value: derivedField.name,
+              status: "added"
+            };
             fieldDifferential.data.usage.derived[derivedIgId] = {
               value: derivedField.usage,
-              reason: "",
-              compliance
+              status: "added"
             };
-          }
-        }
-        if (
-          configuration.predicate &&
-          derivedField.predicate != fieldDifferential.data.predicate.src.value
-        ) {
-          if (!fieldDifferential.data.predicate.derived[derivedIgId]) {
-            segmentDifferential.changed = true;
-            segmentDifferential.data.changed = true;
-            fieldDifferential.changed = true;
-            fieldDifferential.data.changed = true;
-
+            fieldDifferential.data.datatype.derived[derivedIgId] = {
+              value: derivedField.datatype,
+              status: "added"
+            };
             fieldDifferential.data.predicate.derived[derivedIgId] = {
-              value: derivedField.predicate
+              value: derivedField.predicate,
+              status: "added"
             };
-          }
-        }
-        if (configuration.cardinality) {
-          const card = ComparisonService.createCard(
-            derivedField.min,
-            derivedField.max
-          );
-
-          if (
-            fieldDifferential.data.cardinality &&
-            fieldDifferential.data.cardinality.src.value !== card
-          ) {
-            if (!fieldDifferential.data.cardinality.derived) {
-              fieldDifferential.data.cardinality.derived = {};
-            }
-            const compliance = MetricService.updateCardinalityMetrics(
-              derivedIgId,
-              originalProfile,
-              fieldDifferential.data.cardinality.src.value,
-              card,
-              `${segmentDifferential.data.ref}.${derivedField.position}`,
-              fieldDifferential.data,
-              `${segmentDifferential.data.path}.${derivedField.position}`
-            );
-            fieldDifferential.data.cardinality.derived[derivedIgId] = {
-              value: card,
-              reason: "",
-              compliance
-            };
-          }
-        }
-
-        if (configuration.datatype) {
-          if (
-            derivedField.datatype != fieldDifferential.data.datatype.src.value
-          ) {
-            if (!fieldDifferential.data.datatype.derived[derivedIgId]) {
-              segmentDifferential.changed = true;
-              segmentDifferential.data.changed = true;
-              fieldDifferential.changed = true;
-              fieldDifferential.data.changed = true;
-              const compliance = MetricService.updateDatatypeMetrics(
-                derivedIgId,
-                originalProfile,
-                fieldDifferential.data.datatype.src.value,
-                derivedField.datatype,
-                `${segmentDifferential.data.ref}.${derivedField.position}`,
-                fieldDifferential.data,
-                `${segmentDifferential.data.path}.${derivedField.position}`
-              );
-              fieldDifferential.data.datatype.derived[derivedIgId] = {
-                value: derivedField.datatype,
-                reason: "",
-                compliance
-              };
-            }
-          }
-
-          const srcDt =
-            datatypesMap[srcIgId][fieldDifferential.data.datatype.src.value];
-          const derivedDt = datatypesMap[derivedIgId][derivedField.datatype];
-
-          if (configuration.valueset) {
-            this.compareBindings(
+            //TODO: Think about binding. It's in the list of parent.
+          } else {
+            // field was in src profile. Just need to compare
+            this.compareFieldsData(
               fieldDifferential,
-              srcIgId,
-              derivedIgId,
-              derivedDt.bindings,
-              valuesetsMap,
-              "datatype_field",
-              originalProfile
-            );
-            this.spreadDatatypeBindings(
-              fieldDifferential.children,
-              fieldDifferential.bindings,
-              "datatype_field"
-            );
-          }
-
-          if (
-            srcDt.children &&
-            srcDt.children.length > 0 &&
-            fieldDifferential.children &&
-            fieldDifferential.children.length > 0
-          ) {
-            this.compareComponents(
               originalProfile,
               segmentDifferential,
-              fieldDifferential,
-              null,
               srcIgId,
               derivedIgId,
-              derivedDt.children,
-              derivedDt.componentReasons,
+              derivedField,
+              reasons,
               configuration,
               datatypesMap,
               valuesetsMap
             );
           }
+        } else {
+          // field was added
+          segmentDifferential.changed = true;
+          segmentDifferential.data.changed = true;
+
+          let diff = {
+            data: {
+              added: true,
+              name: {
+                src: null,
+                derived: {}
+              },
+              position: derivedField.position,
+              type: derivedField.type,
+              path: `${segmentDifferential.data.ref}.${derivedField.position}`,
+              usage: {
+                src: null,
+                derived: {}
+              },
+              datatype: { src: null, derived: {} },
+              predicate: { src: null, derived: {} }
+            }
+          };
+          diff.data.name.derived[derivedIgId] = {
+            value: derivedField.name,
+            status: "added"
+          };
+          diff.data.usage.derived[derivedIgId] = {
+            value: derivedField.usage,
+            status: "added"
+          };
+          diff.data.datatype.derived[derivedIgId] = {
+            value: derivedField.datatype,
+            status: "added"
+          };
+          diff.data.predicate.derived[derivedIgId] = {
+            value: derivedField.predicate,
+            status: "added"
+          };
+          //TODO: Think about binding. It's in the list of parent.
+          segmentDifferential.children.push(diff);
+          segmentDifferential.children.sort(function(a, b) {
+            return a.data.position - b.data.position;
+          });
+        }
+      });
+    } else {
+      // fields may have been removed. Check for.added field to determine if it was removed from src
+      segmentDifferential.children.forEach(differential => {
+        let derivedField = derivedFields.find(
+          d => d.position === differential.data.position
+        );
+        if (derivedField) {
+          if (differential.data.added) {
+            // component added
+            segmentDifferential.changed = true;
+            segmentDifferential.data.changed = true;
+            fieldDifferential.changed = true;
+            fieldDifferential.data.changed = true;
+
+            differential.data.name.derived[derivedIgId] = {
+              value: derivedField.name,
+              status: "added"
+            };
+            differential.data.usage.derived[derivedIgId] = {
+              value: derivedField.usage,
+              status: "added"
+            };
+            differential.data.datatype.derived[derivedIgId] = {
+              value: derivedField.datatype,
+              status: "added"
+            };
+            differential.data.predicate.derived[derivedIgId] = {
+              value: derivedField.predicate,
+              status: "added"
+            };
+            //TODO: Think about binding. It's in the list of parent.
+          } else {
+            // field was in src profile. Just need to compare
+            this.compareFieldsData(
+              differential,
+              originalProfile,
+              segmentDifferential,
+              srcIgId,
+              derivedIgId,
+              derivedField,
+              reasons,
+              configuration,
+              datatypesMap,
+              valuesetsMap
+            );
+          }
+        } else {
+          // if added. Means that field was added in another profile. So no need to check anything
+          if (!differential.data.added) {
+            // field removed
+            segmentDifferential.changed = true;
+            segmentDifferential.data.changed = true;
+            differential.changed = true;
+            differential.data.changed = true;
+
+            differential.data.name.derived[derivedIgId] = {
+              value: differential.data.name.src.value,
+              status: "deleted"
+            };
+            differential.data.usage.derived[derivedIgId] = {
+              value: differential.data.usage.src.value,
+              status: "deleted"
+            };
+            differential.data.datatype.derived[derivedIgId] = {
+              value: differential.data.datatype.src.value,
+              status: "deleted"
+            };
+            differential.data.predicate.derived[derivedIgId] = {
+              value: differential.data.predicate.src.value,
+              status: "deleted"
+            };
+            //TODO: Think about binding. It's in the list of parent.
+          }
+        }
+      });
+    }
+  },
+  compareFieldsData(
+    fieldDifferential,
+    originalProfile,
+    segmentDifferential,
+    srcIgId,
+    derivedIgId,
+    derivedField,
+    reasons,
+    configuration,
+    datatypesMap,
+    valuesetsMap
+  ) {
+    if (reasons && reasons[fieldDifferential.data.position]) {
+      if (!fieldDifferential.data.reason) {
+        fieldDifferential.data.reason = {};
+      }
+      if (!fieldDifferential.data.reason[derivedIgId]) {
+        fieldDifferential.data.reason[derivedIgId] = {};
+      }
+      fieldDifferential.data.reason[derivedIgId] =
+        reasons[fieldDifferential.data.position];
+    }
+    // Compare name
+    if (derivedField.name !== fieldDifferential.data.name.src.value) {
+      segmentDifferential.changed = true;
+      segmentDifferential.data.changed = true;
+      fieldDifferential.changed = true;
+      fieldDifferential.data.changed = true;
+      fieldDifferential.data.name.derived[derivedIgId] = {
+        value: derivedField.name
+      };
+    }
+
+    //Compare usage
+    if (
+      configuration.usage &&
+      derivedField.usage != fieldDifferential.data.usage.src.value
+    ) {
+      if (!fieldDifferential.data.usage.derived[derivedIgId]) {
+        segmentDifferential.changed = true;
+        segmentDifferential.data.changed = true;
+        fieldDifferential.changed = true;
+        fieldDifferential.data.changed = true;
+
+        const compliance = MetricService.updateUsageMetrics(
+          derivedIgId,
+          originalProfile,
+          fieldDifferential.data.usage.src.value,
+          derivedField.usage,
+          `${segmentDifferential.data.ref}.${derivedField.position}`,
+          fieldDifferential.data,
+          `${segmentDifferential.data.path}.${derivedField.position}`
+        );
+        fieldDifferential.data.usage.derived[derivedIgId] = {
+          value: derivedField.usage,
+          reason: "",
+          compliance
+        };
+      }
+    }
+    if (
+      configuration.predicate &&
+      derivedField.predicate != fieldDifferential.data.predicate.src.value
+    ) {
+      if (!fieldDifferential.data.predicate.derived[derivedIgId]) {
+        segmentDifferential.changed = true;
+        segmentDifferential.data.changed = true;
+        fieldDifferential.changed = true;
+        fieldDifferential.data.changed = true;
+
+        fieldDifferential.data.predicate.derived[derivedIgId] = {
+          value: derivedField.predicate
+        };
+      }
+    }
+    if (configuration.cardinality) {
+      const card = ComparisonService.createCard(
+        derivedField.min,
+        derivedField.max
+      );
+
+      if (
+        fieldDifferential.data.cardinality &&
+        fieldDifferential.data.cardinality.src.value !== card
+      ) {
+        if (!fieldDifferential.data.cardinality.derived) {
+          fieldDifferential.data.cardinality.derived = {};
+        }
+        const compliance = MetricService.updateCardinalityMetrics(
+          derivedIgId,
+          originalProfile,
+          fieldDifferential.data.cardinality.src.value,
+          card,
+          `${segmentDifferential.data.ref}.${derivedField.position}`,
+          fieldDifferential.data,
+          `${segmentDifferential.data.path}.${derivedField.position}`
+        );
+        fieldDifferential.data.cardinality.derived[derivedIgId] = {
+          value: card,
+          reason: "",
+          compliance
+        };
+      }
+    }
+
+    if (configuration.datatype) {
+      if (derivedField.datatype != fieldDifferential.data.datatype.src.value) {
+        if (!fieldDifferential.data.datatype.derived[derivedIgId]) {
+          segmentDifferential.changed = true;
+          segmentDifferential.data.changed = true;
+          fieldDifferential.changed = true;
+          fieldDifferential.data.changed = true;
+          const compliance = MetricService.updateDatatypeMetrics(
+            derivedIgId,
+            originalProfile,
+            fieldDifferential.data.datatype.src.value,
+            derivedField.datatype,
+            `${segmentDifferential.data.ref}.${derivedField.position}`,
+            fieldDifferential.data,
+            `${segmentDifferential.data.path}.${derivedField.position}`
+          );
+          fieldDifferential.data.datatype.derived[derivedIgId] = {
+            value: derivedField.datatype,
+            reason: "",
+            compliance
+          };
         }
       }
-    });
+
+      const srcDt =
+        datatypesMap[srcIgId][fieldDifferential.data.datatype.src.value];
+      const derivedDt = datatypesMap[derivedIgId][derivedField.datatype];
+
+      if (configuration.valueset) {
+        const changed = this.compareBindings(
+          fieldDifferential,
+          srcIgId,
+          derivedIgId,
+          derivedDt.bindings,
+          valuesetsMap,
+          "datatype_field",
+          originalProfile
+        );
+        if (changed) {
+          segmentDifferential.changed = true;
+          segmentDifferential.data.changed = true;
+        }
+        this.spreadDatatypeBindings(
+          fieldDifferential.children,
+          fieldDifferential.bindings,
+          "datatype_field"
+        );
+      }
+
+      if (
+        srcDt.children &&
+        srcDt.children.length > 0 &&
+        fieldDifferential.children &&
+        fieldDifferential.children.length > 0
+      ) {
+        this.compareComponents(
+          originalProfile,
+          segmentDifferential,
+          fieldDifferential,
+          null,
+          srcIgId,
+          derivedIgId,
+          derivedDt.children,
+          derivedDt.componentReasons,
+          configuration,
+          datatypesMap,
+          valuesetsMap
+        );
+      }
+    }
   },
   compareComponents(
     originalProfile,
@@ -1235,247 +1496,476 @@ let CalculationService = {
     datatypesMap,
     valuesetsMap
   ) {
-    derivedComponents.forEach(derivedComponent => {
-      let differential;
-
-      if (componentDifferential) {
-        differential = componentDifferential.children.find(
+    let commonDifferential;
+    if (componentDifferential) {
+      commonDifferential = componentDifferential;
+    } else {
+      commonDifferential = fieldDifferential;
+    }
+    if (derivedComponents.length >= commonDifferential.children.length) {
+      // New component may have been added. Need to check if the component from commonDifferential was in the src profile or was added from a comparison of another derived profile (check for .added field)
+      derivedComponents.forEach(derivedComponent => {
+        let differential = commonDifferential.children.find(
           c => c.data.position === derivedComponent.position
         );
-      } else {
-        differential = fieldDifferential.children.find(
-          c => c.data.position === derivedComponent.position
-        );
-      }
 
-      if (differential) {
-        if (reasons && reasons[differential.data.position]) {
-          if (!differential.data.reason) {
-            differential.data.reason = {};
-          }
-          if (!differential.data.reason[derivedIgId]) {
-            differential.data.reason[derivedIgId] = {};
-          }
-          differential.data.reason[derivedIgId] =
-            reasons[differential.data.position];
-        }
-        if (
-          configuration.usage &&
-          derivedComponent.usage != differential.data.usage.src.value
-        ) {
-          if (!differential.data.usage.derived[derivedIgId]) {
-            segmentDifferential.changed = true;
-
-            segmentDifferential.data.changed = true;
-            fieldDifferential.changed = true;
-            fieldDifferential.data.changed = true;
-
-            if (componentDifferential) {
-              componentDifferential.changed = true;
-              componentDifferential.data.changed = true;
-              derivedComponent.type = "subcomponent";
-            } else {
-              derivedComponent.type = "component";
-            }
-            differential.changed = true;
-            differential.data.changed = true;
-
-            let path = `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`;
-            let globalPath = `${segmentDifferential.data.path}.${fieldDifferential.data.position}`;
-            let element = fieldDifferential.data;
-            if (componentDifferential) {
-              element = componentDifferential.data;
-              path += `.${componentDifferential.data.position}`;
-              globalPath += `.${componentDifferential.data.position}`;
-            }
-            path += `.${derivedComponent.position}`;
-            globalPath += `.${derivedComponent.position}`;
-
-            const compliance = MetricService.updateUsageMetrics(
-              derivedIgId,
-              originalProfile,
-              differential.data.usage.src.value,
-              derivedComponent.usage,
-              path,
-              derivedComponent,
-              globalPath
-            );
+        if (differential) {
+          if (differential.data.added) {
+            // component wasn't in the src profile but was added in a previous comparison
+            differential.data.name.derived[derivedIgId] = {
+              value: derivedComponent.name,
+              status: "added"
+            };
             differential.data.usage.derived[derivedIgId] = {
               value: derivedComponent.usage,
-              reason: "",
-              compliance
+              status: "added"
             };
-            if (componentDifferential) {
-              if (!componentDifferential.data.consequential) {
-                componentDifferential.data.consequential = {
-                  src: false,
-                  derived: {}
-                };
-              }
-
-              if (
-                (componentDifferential.data.usage.derived[derivedIgId] &&
-                  (componentDifferential.data.usage.derived[derivedIgId]
-                    .value === "R" ||
-                    componentDifferential.data.usage.derived[derivedIgId]
-                      .value === "RE")) ||
-                (!componentDifferential.data.usage.derived[derivedIgId] &&
-                  (componentDifferential.data.usage.src.value === "R" ||
-                    componentDifferential.data.usage.src.value === "RE"))
-              ) {
-                componentDifferential.data.consequential.derived[
-                  derivedIgId
-                ] = true;
-                componentDifferential.data.consequential.src = true;
-              } else {
-                componentDifferential.data.consequential.derived[
-                  derivedIgId
-                ] = false;
-              }
-            } else {
-              if (!fieldDifferential.data.consequential) {
-                fieldDifferential.data.consequential = {
-                  src: false,
-                  derived: {}
-                };
-              }
-
-              if (
-                (fieldDifferential.data.usage.derived[derivedIgId] &&
-                  (fieldDifferential.data.usage.derived[derivedIgId].value ===
-                    "R" ||
-                    fieldDifferential.data.usage.derived[derivedIgId].value ===
-                      "RE")) ||
-                (!fieldDifferential.data.usage.derived[derivedIgId] &&
-                  (fieldDifferential.data.usage.src.value === "R" ||
-                    fieldDifferential.data.usage.src.value === "RE"))
-              ) {
-                fieldDifferential.data.consequential.derived[
-                  derivedIgId
-                ] = true;
-                fieldDifferential.data.consequential.src = true;
-              } else {
-                fieldDifferential.data.consequential.derived[
-                  derivedIgId
-                ] = false;
-              }
-            }
-          }
-        }
-
-        if (
-          configuration.predicate &&
-          derivedComponent.predicate != differential.data.predicate.src.value
-        ) {
-          if (!differential.data.predicate.derived[derivedIgId]) {
-            segmentDifferential.changed = true;
-
-            segmentDifferential.data.changed = true;
-            fieldDifferential.changed = true;
-            fieldDifferential.data.changed = true;
-
-            if (componentDifferential) {
-              componentDifferential.changed = true;
-              componentDifferential.data.changed = true;
-              derivedComponent.type = "subcomponent";
-            } else {
-              derivedComponent.type = "component";
-            }
-            differential.changed = true;
-            differential.data.changed = true;
-
+            differential.data.datatype.derived[derivedIgId] = {
+              value: derivedComponent.datatype,
+              status: "added"
+            };
             differential.data.predicate.derived[derivedIgId] = {
-              value: derivedComponent.predicate
+              value: derivedComponent.predicate,
+              status: "added"
             };
-          }
-        }
-        if (configuration.datatype) {
-          if (
-            derivedComponent.datatype != differential.data.datatype.src.value
-          ) {
-            if (!differential.data.datatype.derived[derivedIgId]) {
-              segmentDifferential.changed = true;
-              segmentDifferential.data.changed = true;
-              fieldDifferential.changed = true;
-              fieldDifferential.data.changed = true;
-
-              if (componentDifferential) {
-                componentDifferential.changed = true;
-                componentDifferential.data.changed = true;
-              }
-              differential.changed = true;
-              differential.data.changed = true;
-
-              let path = `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`;
-              let globalPath = `${segmentDifferential.data.path}.${fieldDifferential.data.position}`;
-              let element = fieldDifferential.data;
-              if (componentDifferential) {
-                element = componentDifferential.data;
-                path += `.${componentDifferential.data.position}`;
-                globalPath += `.${componentDifferential.data.position}`;
-              }
-              path += `.${derivedComponent.position}`;
-              globalPath += `.${derivedComponent.position}`;
-              const compliance = MetricService.updateDatatypeMetrics(
-                derivedIgId,
-                originalProfile,
-                differential.data.datatype.src.value,
-                derivedComponent.datatype,
-                path,
-                element,
-                globalPath
-              );
-              differential.data.datatype.derived[derivedIgId] = {
-                value: derivedComponent.datatype,
-                reason: "",
-                compliance
-              };
-            }
-          }
-
-          const srcDt =
-            datatypesMap[srcIgId][differential.data.datatype.src.value];
-          const derivedDt =
-            datatypesMap[derivedIgId][derivedComponent.datatype];
-
-          if (configuration.valueset) {
-            this.compareBindings(
+            //TODO: Think about binding. It's in the list of parent.
+          } else {
+            // component was in src profile. Just need to compare
+            this.compareComponentData(
               differential,
-              srcIgId,
-              derivedIgId,
-              derivedDt.bindings,
-              valuesetsMap,
-              "datatype_component",
-              originalProfile
-            );
-            this.spreadDatatypeBindings(
-              differential.children,
-              differential.bindings,
-              "datatype_component"
-            );
-          }
-          if (
-            srcDt.children &&
-            srcDt.children.length > 0 &&
-            differential.children
-          ) {
-            this.compareComponents(
               originalProfile,
               segmentDifferential,
               fieldDifferential,
-              differential,
+              componentDifferential,
               srcIgId,
               derivedIgId,
-              derivedDt.children,
-              derivedDt.componentReasons,
+              derivedComponent,
+              reasons,
               configuration,
               datatypesMap,
               valuesetsMap
             );
           }
+        } else {
+          // component was added
+          segmentDifferential.changed = true;
+          segmentDifferential.data.changed = true;
+          fieldDifferential.changed = true;
+          fieldDifferential.data.changed = true;
+          if (componentDifferential) {
+            componentDifferential.changed = true;
+            componentDifferential.data.changed = true;
+            derivedComponent.type = "subcomponent";
+          } else {
+            derivedComponent.type = "component";
+          }
+          let path = `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`;
+          let globalPath = `${segmentDifferential.data.path}.${fieldDifferential.data.position}`;
+          let element = fieldDifferential.data;
+          if (componentDifferential) {
+            element = componentDifferential.data;
+            path += `.${componentDifferential.data.position}`;
+            globalPath += `.${componentDifferential.data.position}`;
+          }
+          path += `.${derivedComponent.position}`;
+          globalPath += `.${derivedComponent.position}`;
+
+          let diff = {
+            data: {
+              added: true,
+              name: {
+                src: null,
+                derived: {}
+              },
+              position: derivedComponent.position,
+              type: derivedComponent.type,
+              path: globalPath,
+              usage: {
+                src: null,
+                derived: {}
+              },
+              datatype: { src: null, derived: {} },
+              predicate: { src: null, derived: {} }
+            }
+          };
+          diff.data.name.derived[derivedIgId] = {
+            value: derivedComponent.name,
+            status: "added"
+          };
+          diff.data.usage.derived[derivedIgId] = {
+            value: derivedComponent.usage,
+            status: "added"
+          };
+          diff.data.datatype.derived[derivedIgId] = {
+            value: derivedComponent.datatype,
+            status: "added"
+          };
+          diff.data.predicate.derived[derivedIgId] = {
+            value: derivedComponent.predicate,
+            status: "added"
+          };
+          //TODO: Think about binding. It's in the list of parent.
+          commonDifferential.children.push(diff);
+          commonDifferential.children.sort(function(a, b) {
+            return a.data.position - b.data.position;
+          });
+        }
+      });
+    } else {
+      // Components may have been removed. Check for.added field to determine if it was removed from src
+      commonDifferential.children.forEach(differential => {
+        let derivedComponent = derivedComponents.find(
+          d => d.position === differential.data.position
+        );
+        if (derivedComponent) {
+          if (differential.data.added) {
+            // component added
+            segmentDifferential.changed = true;
+            segmentDifferential.data.changed = true;
+            fieldDifferential.changed = true;
+            fieldDifferential.data.changed = true;
+            commonDifferential.changed = true;
+            commonDifferential.data.changed = true;
+            differential.data.name.derived[derivedIgId] = {
+              value: derivedComponent.name,
+              status: "added"
+            };
+            differential.data.usage.derived[derivedIgId] = {
+              value: derivedComponent.usage,
+              status: "added"
+            };
+            differential.data.datatype.derived[derivedIgId] = {
+              value: derivedComponent.datatype,
+              status: "added"
+            };
+            differential.data.predicate.derived[derivedIgId] = {
+              value: derivedComponent.predicate,
+              status: "added"
+            };
+            //TODO: Think about binding. It's in the list of parent.
+          } else {
+            // component was in src profile. Just need to compare
+            this.compareComponentData(
+              differential,
+              originalProfile,
+              segmentDifferential,
+              fieldDifferential,
+              componentDifferential,
+              srcIgId,
+              derivedIgId,
+              derivedComponent,
+              reasons,
+              configuration,
+              datatypesMap,
+              valuesetsMap
+            );
+          }
+        } else {
+          // if added. Means that components was added in another profile. So no need to check anything
+          if (!differential.data.added) {
+            // component removed
+            segmentDifferential.changed = true;
+            segmentDifferential.data.changed = true;
+            fieldDifferential.changed = true;
+            fieldDifferential.data.changed = true;
+            commonDifferential.changed = true;
+            commonDifferential.data.changed = true;
+            differential.data.name.derived[derivedIgId] = {
+              value: differential.data.name.src.value,
+              status: "deleted"
+            };
+            differential.data.usage.derived[derivedIgId] = {
+              value: differential.data.usage.src.value,
+              status: "deleted"
+            };
+            differential.data.datatype.derived[derivedIgId] = {
+              value: differential.data.datatype.src.value,
+              status: "deleted"
+            };
+            differential.data.predicate.derived[derivedIgId] = {
+              value: differential.data.predicate.src.value,
+              status: "deleted"
+            };
+            //TODO: Think about binding. It's in the list of parent.
+          }
+        }
+      });
+    }
+  },
+  compareComponentData(
+    differential,
+    originalProfile,
+    segmentDifferential,
+    fieldDifferential,
+    componentDifferential,
+    srcIgId,
+    derivedIgId,
+    derivedComponent,
+    reasons,
+    configuration,
+    datatypesMap,
+    valuesetsMap
+  ) {
+    if (reasons && reasons[differential.data.position]) {
+      if (!differential.data.reason) {
+        differential.data.reason = {};
+      }
+      if (!differential.data.reason[derivedIgId]) {
+        differential.data.reason[derivedIgId] = {};
+      }
+      differential.data.reason[derivedIgId] =
+        reasons[differential.data.position];
+    }
+
+    // Compare name
+    if (derivedComponent.name !== differential.data.name.src.value) {
+      segmentDifferential.changed = true;
+      segmentDifferential.data.changed = true;
+      fieldDifferential.changed = true;
+      fieldDifferential.data.changed = true;
+      differential.changed = true;
+      differential.data.changed = true;
+      if (componentDifferential) {
+        componentDifferential.changed = true;
+        componentDifferential.data.changed = true;
+        derivedComponent.type = "subcomponent";
+      } else {
+        derivedComponent.type = "component";
+      }
+
+      let path = `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`;
+      let globalPath = `${segmentDifferential.data.path}.${fieldDifferential.data.position}`;
+      let element = fieldDifferential.data;
+      if (componentDifferential) {
+        element = componentDifferential.data;
+        path += `.${componentDifferential.data.position}`;
+        globalPath += `.${componentDifferential.data.position}`;
+      }
+      path += `.${derivedComponent.position}`;
+      globalPath += `.${derivedComponent.position}`;
+      differential.data.name.derived[derivedIgId] = {
+        value: derivedComponent.name
+      };
+    }
+
+    //Compare usage
+    if (
+      configuration.usage &&
+      derivedComponent.usage != differential.data.usage.src.value
+    ) {
+      if (!differential.data.usage.derived[derivedIgId]) {
+        segmentDifferential.changed = true;
+        segmentDifferential.data.changed = true;
+        fieldDifferential.changed = true;
+        fieldDifferential.data.changed = true;
+
+        if (componentDifferential) {
+          componentDifferential.changed = true;
+          componentDifferential.data.changed = true;
+          derivedComponent.type = "subcomponent";
+        } else {
+          derivedComponent.type = "component";
+        }
+        differential.changed = true;
+        differential.data.changed = true;
+
+        let path = `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`;
+        let globalPath = `${segmentDifferential.data.path}.${fieldDifferential.data.position}`;
+        let element = fieldDifferential.data;
+        if (componentDifferential) {
+          element = componentDifferential.data;
+          path += `.${componentDifferential.data.position}`;
+          globalPath += `.${componentDifferential.data.position}`;
+        }
+        path += `.${derivedComponent.position}`;
+        globalPath += `.${derivedComponent.position}`;
+
+        const compliance = MetricService.updateUsageMetrics(
+          derivedIgId,
+          originalProfile,
+          differential.data.usage.src.value,
+          derivedComponent.usage,
+          path,
+          derivedComponent,
+          globalPath
+        );
+        differential.data.usage.derived[derivedIgId] = {
+          value: derivedComponent.usage,
+          reason: "",
+          compliance
+        };
+        if (componentDifferential) {
+          if (!componentDifferential.data.consequential) {
+            componentDifferential.data.consequential = {
+              src: false,
+              derived: {}
+            };
+          }
+
+          if (
+            (componentDifferential.data.usage.derived[derivedIgId] &&
+              (componentDifferential.data.usage.derived[derivedIgId].value ===
+                "R" ||
+                componentDifferential.data.usage.derived[derivedIgId].value ===
+                  "RE")) ||
+            (!componentDifferential.data.usage.derived[derivedIgId] &&
+              (componentDifferential.data.usage.src.value === "R" ||
+                componentDifferential.data.usage.src.value === "RE"))
+          ) {
+            componentDifferential.data.consequential.derived[
+              derivedIgId
+            ] = true;
+            componentDifferential.data.consequential.src = true;
+          } else {
+            componentDifferential.data.consequential.derived[
+              derivedIgId
+            ] = false;
+          }
+        } else {
+          if (!fieldDifferential.data.consequential) {
+            fieldDifferential.data.consequential = {
+              src: false,
+              derived: {}
+            };
+          }
+
+          if (
+            (fieldDifferential.data.usage.derived[derivedIgId] &&
+              (fieldDifferential.data.usage.derived[derivedIgId].value ===
+                "R" ||
+                fieldDifferential.data.usage.derived[derivedIgId].value ===
+                  "RE")) ||
+            (!fieldDifferential.data.usage.derived[derivedIgId] &&
+              (fieldDifferential.data.usage.src.value === "R" ||
+                fieldDifferential.data.usage.src.value === "RE"))
+          ) {
+            fieldDifferential.data.consequential.derived[derivedIgId] = true;
+            fieldDifferential.data.consequential.src = true;
+          } else {
+            fieldDifferential.data.consequential.derived[derivedIgId] = false;
+          }
         }
       }
-    });
+    }
+
+    if (
+      configuration.predicate &&
+      derivedComponent.predicate != differential.data.predicate.src.value
+    ) {
+      if (!differential.data.predicate.derived[derivedIgId]) {
+        segmentDifferential.changed = true;
+
+        segmentDifferential.data.changed = true;
+        fieldDifferential.changed = true;
+        fieldDifferential.data.changed = true;
+
+        if (componentDifferential) {
+          componentDifferential.changed = true;
+          componentDifferential.data.changed = true;
+          derivedComponent.type = "subcomponent";
+        } else {
+          derivedComponent.type = "component";
+        }
+        differential.changed = true;
+        differential.data.changed = true;
+
+        differential.data.predicate.derived[derivedIgId] = {
+          value: derivedComponent.predicate
+        };
+      }
+    }
+    if (configuration.datatype) {
+      if (derivedComponent.datatype != differential.data.datatype.src.value) {
+        if (!differential.data.datatype.derived[derivedIgId]) {
+          segmentDifferential.changed = true;
+          segmentDifferential.data.changed = true;
+          fieldDifferential.changed = true;
+          fieldDifferential.data.changed = true;
+
+          if (componentDifferential) {
+            componentDifferential.changed = true;
+            componentDifferential.data.changed = true;
+          }
+          differential.changed = true;
+          differential.data.changed = true;
+
+          let path = `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`;
+          let globalPath = `${segmentDifferential.data.path}.${fieldDifferential.data.position}`;
+          let element = fieldDifferential.data;
+          if (componentDifferential) {
+            element = componentDifferential.data;
+            path += `.${componentDifferential.data.position}`;
+            globalPath += `.${componentDifferential.data.position}`;
+          }
+          path += `.${derivedComponent.position}`;
+          globalPath += `.${derivedComponent.position}`;
+          const compliance = MetricService.updateDatatypeMetrics(
+            derivedIgId,
+            originalProfile,
+            differential.data.datatype.src.value,
+            derivedComponent.datatype,
+            path,
+            element,
+            globalPath
+          );
+          differential.data.datatype.derived[derivedIgId] = {
+            value: derivedComponent.datatype,
+            reason: "",
+            compliance
+          };
+        }
+      }
+
+      const srcDt = datatypesMap[srcIgId][differential.data.datatype.src.value];
+      const derivedDt = datatypesMap[derivedIgId][derivedComponent.datatype];
+
+      if (configuration.valueset) {
+        const changed = this.compareBindings(
+          differential,
+          srcIgId,
+          derivedIgId,
+          derivedDt.bindings,
+          valuesetsMap,
+          "datatype_component",
+          originalProfile
+        );
+        if (changed) {
+          segmentDifferential.changed = true;
+          segmentDifferential.data.changed = true;
+          fieldDifferential.changed = true;
+          fieldDifferential.data.changed = true;
+
+          if (componentDifferential) {
+            componentDifferential.changed = true;
+            componentDifferential.data.changed = true;
+          }
+        }
+        this.spreadDatatypeBindings(
+          differential.children,
+          differential.bindings,
+          "datatype_component"
+        );
+      }
+      if (
+        srcDt.children &&
+        srcDt.children.length > 0 &&
+        differential.children
+      ) {
+        this.compareComponents(
+          originalProfile,
+          segmentDifferential,
+          fieldDifferential,
+          differential,
+          srcIgId,
+          derivedIgId,
+          derivedDt.children,
+          derivedDt.componentReasons,
+          configuration,
+          datatypesMap,
+          valuesetsMap
+        );
+      }
+    }
   },
 
   createProfileDiff(

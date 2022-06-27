@@ -96,7 +96,12 @@ let DatatypeService = {
       currentPath += `.${component.position}`;
       let componentDifferential = {
         data: {
-          name: component.name,
+          name: {
+            src: {
+              value: component.name
+            },
+            derived: {}
+          },
           position: component.position,
           type: level === 1 ? "component" : "subcomponent",
           path: currentPath

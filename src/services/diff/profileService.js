@@ -65,7 +65,10 @@ let ProfileService = {
         res.push({
           data: {
             position: group["$"].position,
-            name: group["$"].name,
+            name:  {
+              src: { value: group["$"].name },
+              derived: {}
+            },
             usage: {
               src: { value: group["$"].usage }
             },
@@ -198,7 +201,10 @@ let ProfileService = {
           position: segRef["$"].position,
           path: path,
           ref: segRef["$"].ref,
-          name: segRef["$"].ref,
+          name: {
+            src: { value: segRef["$"].ref },
+            derived: {}
+          },
           idSeg: segRef["$"].iDSeg,
           label: {
             src: { value: segRef["$"].label },

@@ -4,7 +4,6 @@ const ComparisonService = require("../comparisonService");
 
 let SegmentService = {
   populateSegmentsMap: function(segmentsMap, igId, segments) {
-    console.log(igId);
     if (segments) {
       if (!segmentsMap[igId]) {
         segmentsMap[igId] = {};
@@ -44,7 +43,6 @@ let SegmentService = {
         });
         result.fieldReasons = reasonsMap;
       }
-   
     }
     return result;
   },
@@ -65,8 +63,7 @@ let SegmentService = {
           binding: field["$"].Binding,
           bindingStrength: field["$"].BindingStrength,
           bindingLocation: field["$"].BindingLocation,
-          predicate: field["$"].predicate,
-
+          predicate: field["$"].predicate
         });
       });
     }
@@ -87,7 +84,12 @@ let SegmentService = {
       currentPath += `.${field.position}`;
       let fieldDifferential = {
         data: {
-          name: field.name,
+          name: {
+            src: {
+              value: field.name
+            },
+            derived: {}
+          },
           position: field.position,
           type: "field",
           path: currentPath
@@ -135,7 +137,7 @@ let SegmentService = {
             igId,
             field,
             configuration,
-            valuesetsMap,
+            valuesetsMap
           );
         }
       }
@@ -154,7 +156,7 @@ let SegmentService = {
           valuesetsMap
         );
       }
-   
+
       results.push(fieldDifferential);
     });
     return results;

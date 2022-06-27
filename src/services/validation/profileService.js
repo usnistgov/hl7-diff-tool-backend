@@ -26,7 +26,7 @@ let ProfileService = {
         data: {
           position: segRef["$"].position,
           ref: segRef["$"].Ref,
-          name: seg.name,
+          name: { src: { value: seg.name }, derived: {} },
           idSeg: segRef["$"].Ref,
           label: { src: { value: seg.label } },
           description: seg.description,
@@ -58,11 +58,13 @@ let ProfileService = {
       groups = JSON.parse(JSON.stringify(groups));
 
       groups.forEach(group => {
-    
         res.push({
           data: {
             position: group["$"].position,
-            name: group["$"].Name,
+            name: {
+              src: { value: group["$"].Name },
+              derived: {}
+            },
             usage: {
               src: { value: group["$"].Usage }
             },
@@ -142,7 +144,6 @@ let ProfileService = {
       groups = JSON.parse(JSON.stringify(groups));
 
       groups.forEach(group => {
-
         let path = currentPath;
         if (path == "") {
           path += group["$"].position;
@@ -188,7 +189,11 @@ let ProfileService = {
           position: segRef["$"].position,
           path: path,
           ref: segRef["$"].Ref,
-          name: segmentsMap[igId][segRef["$"].Ref].name,
+          name: {
+            src: { value: segmentsMap[igId][segRef["$"].Ref].name },
+            derived: {}
+          },
+
           label: {
             src: { value: segmentsMap[igId][segRef["$"].Ref].label },
             derived: {}
@@ -208,10 +213,9 @@ let ProfileService = {
             datatypesMap,
             valuesetsMap
           )
-        ],
+        ]
         //TODO: remove comment
         // fieldReasons: segmentsMap[igId][segRef["$"].iDSeg].fieldReasons,
-       
       });
     });
     return res;

@@ -88,6 +88,19 @@ let ValuesetService = {
           });
         }
       });
+      src.forEach(code => {
+        const c = derived.find(
+          x => x.codeSystem === code.codeSystem && x.value === code.value
+        )
+        if(!c){
+          //code deleted
+          codes.changed = true;
+          codes.list.push({
+            ...code,
+            status: "deleted"
+          });
+        }
+      });
     }
     return codes;
   },
