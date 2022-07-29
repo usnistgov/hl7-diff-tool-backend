@@ -26,7 +26,9 @@ let DatatypeService = {
         version: datatype["$"].Version,
         description: datatype["$"].Description,
         label: datatype["$"].Label,
-        children: this.extractComponents(datatype.Component)
+        children: this.extractComponents(datatype.Component),
+        conformanceStatements: datatype.conformanceStatements ? datatype.conformanceStatements : []
+
       };
       if (
         datatype.Reasons &&
@@ -97,7 +99,9 @@ let DatatypeService = {
           },
           position: component.position,
           type: level === 1 ? "component" : "subcomponent",
-          path: currentPath
+          path: currentPath,
+          changeTypes: []
+
         },
         changed: false
       };

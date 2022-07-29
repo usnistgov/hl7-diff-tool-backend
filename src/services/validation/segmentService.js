@@ -26,8 +26,10 @@ let SegmentService = {
         description: segment["$"].Description,
         label: segment["$"].Label,
         version: segment["$"].Version,
-        children: this.extractFields(segment.Field)
+        children: this.extractFields(segment.Field),
+        conformanceStatements: segment.conformanceStatements ? segment.conformanceStatements : []
       };
+     
       if (segment.Reasons && segment.Reasons[0] && segment.Reasons[0].Reason) {
         let reasonsMap = {};
         const reasonsForChange = segment.Reasons[0].Reason;
@@ -69,7 +71,25 @@ let SegmentService = {
     }
     return result;
   },
-
+  populateConformanceStatements: function( conformanceStatements) {
+    let results = [];
+    if (conformanceStatements) {
+      conformanceStatements.forEach(conformanceStatement => {
+        let diff = {
+          data: {
+            id: conformanceStatement.id,
+            description: {
+              src: { value: conformanceStatement.description },
+              derived: {}
+            }
+          }
+      
+        };
+        results.push(diff);
+      });
+    }
+    return results;
+  },
   populateSrcFields: function(
     igId,
     fields,
@@ -92,9 +112,13 @@ let SegmentService = {
           },
           position: field.position,
           type: "field",
-          path: currentPath
+          path: currentPath,
+          changeTypes: []
+
         },
-        changed: false
+        changed: false,
+        changeTypes: []
+
       };
 
       if (configuration.usage) {

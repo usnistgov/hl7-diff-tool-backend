@@ -235,14 +235,19 @@ let ValuesetService = {
       let bindingDiff = fieldDifferential.data.bindings[0];
       if (derivedField.binding) {
         let strength = this.translateStrength(derivedField.bindingStrength);
+
         if (bindingDiff.data.strength.src.value !== strength) {
           bindingDiff.changed = true;
           bindingDiff.data.changed = true;
 
           fieldDifferential.changed = true;
           fieldDifferential.data.changed = true;
+          fieldDifferential.data.changeTypes.push("valueset");
+
           segmentDifferential.changed = true;
           segmentDifferential.data.changed = true;
+          segmentDifferential.data.changeTypes.push("valueset");
+
           const compliance = MetricService.updateBindingMetrics(
             derivedIgId,
             originalProfile,
@@ -268,8 +273,12 @@ let ValuesetService = {
             bindingDiff.data.changed = true;
             segmentDifferential.changed = true;
             segmentDifferential.data.changed = true;
+            segmentDifferential.data.changeTypes.push("valueset");
+
             fieldDifferential.changed = true;
             fieldDifferential.data.changed = true;
+            fieldDifferential.data.changeTypes.push("valueset");
+
             const compliance = MetricService.updateBindingMetrics(
               derivedIgId,
               originalProfile,
@@ -315,11 +324,15 @@ let ValuesetService = {
               if (comparedCodes.changed) {
                 segmentDifferential.changed = true;
                 segmentDifferential.data.changed = true;
+                segmentDifferential.data.changeTypes.push("valueset");
+
                 bindingDiff.changed = true;
                 bindingDiff.data.changed = true;
                 bindingDiff.data.showCodes = true;
                 fieldDifferential.changed = true;
                 fieldDifferential.data.changed = true;
+                fieldDifferential.data.changeTypes.push("valueset");
+
                 diff.status = "changed";
 
                 diff.codes = comparedCodes.list;
@@ -352,8 +365,12 @@ let ValuesetService = {
               // New Value set added to binding
               segmentDifferential.changed = true;
               segmentDifferential.data.changed = true;
+              segmentDifferential.data.changeTypes.push("valueset");
+
               fieldDifferential.changed = true;
               fieldDifferential.data.changed = true;
+              fieldDifferential.data.changeTypes.push("valueset");
+
               bindingDiff.changed = true;
               bindingDiff.data.changed = true;
               bindingDiff.data.showCodes = true;
@@ -377,41 +394,49 @@ let ValuesetService = {
             }
           }
         });
-        if(bindingDiff.data.valuesets.src.value){
+        if (bindingDiff.data.valuesets.src.value) {
           bindingDiff.data.valuesets.src.value.forEach(valueset => {
             let vs = valuesets.find(v => {
-              return v.bindingIdentifier === valueset.bindingIdentifier
-            })
-            if(!vs){
+              return v.bindingIdentifier === valueset.bindingIdentifier;
+            });
+            if (!vs) {
               //vs removed from binding
               segmentDifferential.changed = true;
               segmentDifferential.data.changed = true;
+              segmentDifferential.data.changeTypes.push("valueset");
+
               fieldDifferential.changed = true;
               fieldDifferential.data.changed = true;
+              fieldDifferential.data.changeTypes.push("valueset");
+
               bindingDiff.changed = true;
               bindingDiff.data.changed = true;
               bindingDiff.data.showCodes = true;
               if (!bindingDiff.data.valuesets.derived[derivedIgId]) {
                 bindingDiff.data.valuesets.derived[derivedIgId] = {
-                  value: [],
+                  value: []
                 };
               }
               bindingDiff.data.valuesets.derived[derivedIgId].value.push({
                 bindingIdentifier: valueset.bindingIdentifier,
-                codes: valuesetsMap[srcIgId] ? valuesetsMap[srcIgId][valueset.bindingIdentifier].children : [],
+                codes: valuesetsMap[srcIgId]
+                  ? valuesetsMap[srcIgId][valueset.bindingIdentifier].children
+                  : [],
                 status: "deleted"
               });
             }
           });
         }
-
       } else {
         //binding removed
         // TODO: update compliance
         segmentDifferential.changed = true;
         segmentDifferential.data.changed = true;
+        segmentDifferential.data.changeTypes.push("valueset");
+
         fieldDifferential.changed = true;
         fieldDifferential.data.changed = true;
+        fieldDifferential.data.changeTypes.push("valueset");
 
         bindingDiff.changed = true;
         bindingDiff.data.changed = true;
@@ -441,8 +466,12 @@ let ValuesetService = {
 
         segmentDifferential.changed = true;
         segmentDifferential.data.changed = true;
+        segmentDifferential.data.changeTypes.push("valueset");
+
         fieldDifferential.changed = true;
         fieldDifferential.data.changed = true;
+        fieldDifferential.data.changeTypes.push("valueset");
+
         let newBindingDifferential = {
           data: {
             status: "added",

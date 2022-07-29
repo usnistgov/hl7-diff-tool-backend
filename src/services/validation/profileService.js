@@ -45,7 +45,9 @@ let ProfileService = {
           max: {
             src: { value: segRef["$"].Max }
           },
-          type: "segmentRef"
+          type: "segmentRef",
+          changeTypes: []
+
         },
         changed: false
       });
@@ -80,7 +82,9 @@ let ProfileService = {
             max: {
               src: { value: group["$"].Max }
             },
-            type: "group"
+            type: "group",
+          changeTypes: []
+
           },
           changed: false,
           children: this.populateProfileChildren(group, segmentsMap, igId)
@@ -201,7 +205,9 @@ let ProfileService = {
           description: {
             src: { value: segmentsMap[igId][segRef["$"].Ref].description },
             derived: {}
-          }
+          },
+          changeTypes: []
+
         },
         changed: false,
         children: [
@@ -213,7 +219,12 @@ let ProfileService = {
             datatypesMap,
             valuesetsMap
           )
-        ]
+        ],
+        conformanceStatements: [
+          ...SegmentService.populateConformanceStatements(
+            segmentsMap[igId][segRef["$"].Ref].conformanceStatements
+          )
+        ],
         //TODO: remove comment
         // fieldReasons: segmentsMap[igId][segRef["$"].iDSeg].fieldReasons,
       });

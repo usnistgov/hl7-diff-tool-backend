@@ -120,7 +120,9 @@ let SegmentService = {
           },
           position: field.position,
           type: "field",
-          path: currentPath
+          path: currentPath,
+          changeTypes: []
+
         },
         changed: false
       };

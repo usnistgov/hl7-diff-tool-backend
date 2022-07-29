@@ -189,6 +189,7 @@ let DifferentialService = {
               sourceCtList.ConformanceContext.Constraints[0];
           }
           self.populatePredicates(sourceProfile);
+          self.populateConformanceStatements(sourceProfile);
         }
       }
     });
@@ -234,7 +235,7 @@ let DifferentialService = {
         ) {
           let derivedIg = {
             ig: result.ConformanceProfile.MetaData[0]["$"].Name,
-            id: derivedProfileId
+            id: derivedProfileId + `_${index}`
           };
           const selectedProfile = result.ConformanceProfile.Messages[0].Message.find(
             m => m["$"].ID === derivedProfileId
@@ -260,17 +261,23 @@ let DifferentialService = {
             result.ConformanceProfile.Datatypes &&
             result.ConformanceProfile.Datatypes[0]
           ) {
-            derivedIg.datatypes = result.ConformanceProfile.Datatypes[0].Datatype;
+            derivedIg.datatypes =
+              result.ConformanceProfile.Datatypes[0].Datatype;
             derivedIg.datatypes.forEach(dt => {
               self.populatePosition(dt);
             });
           }
           if (vsFiles[index]) {
             derivedIg.valuesets = [];
-            if (vsFiles[index].ValueSetLibrary.ValueSetDefinitions) {
-              vsFiles[index].ValueSetLibrary.ValueSetDefinitions.forEach(list => {
-                derivedIg.valuesets.push(...list.ValueSetDefinition);
-              });
+            if (
+              vsFiles[index].ValueSetLibrary &&
+              vsFiles[index].ValueSetLibrary.ValueSetDefinitions
+            ) {
+              vsFiles[index].ValueSetLibrary.ValueSetDefinitions.forEach(
+                list => {
+                  derivedIg.valuesets.push(...list.ValueSetDefinition);
+                }
+              );
             }
           }
           if (ctFiles[index]) {
@@ -285,31 +292,12 @@ let DifferentialService = {
                 ctFiles[index].ConformanceContext.Constraints[0];
             }
             self.populatePredicates(derivedIg);
+            self.populateConformanceStatements(derivedIg);
           }
-          // for (
-          //   let index = 0;
-          //   index < result.Document.Section[0].Section.length;
-          //   index++
-          // ) {
-          //   const section = result.Document.Section[0].Section[index];
-  
-          //   if (section["$"].type === "CONFORMANCEPROFILEREGISTRY") {
-          //     derivedIg.profiles = section.Section;
-          //   }
-          //   if (section["$"].type === "SEGMENTREGISTRY") {
-          //     derivedIg.segments = section.Section;
-          //   }
-          //   if (section["$"].type === "DATATYPEREGISTRY") {
-          //     derivedIg.datatypes = section.Section;
-          //   }
-          //   if (section["$"].type === "VALUESETREGISTRY") {
-          //     derivedIg.valuesets = section.Section;
-          //   }
-          // }
+
           derivedIgs.push(derivedIg);
         }
       }
-
     }
     const data = ValidationCalculationService.calculate(
       sourceProfile,
@@ -317,6 +305,66 @@ let DifferentialService = {
       configuration
     );
     return res.status(200).send({ success: true, data: data });
+  },
+  populateConformanceStatements: function(profile) {
+    if (profile.constraints) {
+      if (profile.constraints.Message) {
+        let constraints = profile.constraints.Message[0].ByID;
+
+        constraints.forEach(constraint => {
+          const profileId = constraint["$"].ID;
+
+          if (profile.id === profileId) {
+            profile.profile.conformanceStatements = constraint.Constraint.map(
+              c => {
+                return { id: c["$"].ID, description: c.Description[0] };
+              }
+            );
+          }
+        });
+      }
+      if (profile.constraints.Group) {
+        let constraints = profile.constraints.Group[0].ByID;
+
+        constraints.forEach(constraint => {
+          const id = constraint["$"].ID;
+
+          if (id.startsWith(profile.id)) {
+            profile.profile.conformanceStatements.push(
+              ...constraint.Constraint.map(c => {
+                return { id: c["$"].ID, description: c.Description[0] };
+              })
+            );
+          }
+        });
+      }
+      if (profile.constraints.Segment) {
+        let constraints = profile.constraints.Segment[0].ByID;
+        constraints.forEach(constraint => {
+          const segmentId = constraint["$"].ID;
+          let segment = profile.segments.find(seg => seg["$"].ID === segmentId);
+          if (segment) {
+            segment.conformanceStatements = constraint.Constraint.map(c => {
+              return { id: c["$"].ID, description: c.Description[0] };
+            });
+          }
+        });
+      }
+      if (profile.constraints.Datatype) {
+        let constraints = profile.constraints.Datatype[0].ByID;
+        constraints.forEach(constraint => {
+          const datatypeId = constraint["$"].ID;
+          let datatype = profile.datatypes.find(
+            dt => dt["$"].ID === datatypeId
+          );
+          if (datatype) {
+            datatype.conformanceStatements = constraint.Constraint.map(c => {
+              return { id: c["$"].ID, description: c.Description[0] };
+            });
+          }
+        });
+      }
+    }
   },
   populatePredicates: function(profile) {
     if (profile.predicates) {

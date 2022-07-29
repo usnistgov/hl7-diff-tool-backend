@@ -44,7 +44,8 @@ let ProfileService = {
           max: {
             src: { value: segRef["$"].max }
           },
-          type: "segmentRef"
+          type: "segmentRef",
+          changeTypes: []
         },
         changed: false
       });
@@ -65,7 +66,7 @@ let ProfileService = {
         res.push({
           data: {
             position: group["$"].position,
-            name:  {
+            name: {
               src: { value: group["$"].name },
               derived: {}
             },
@@ -84,7 +85,8 @@ let ProfileService = {
             max: {
               src: { value: group["$"].max }
             },
-            type: "group"
+            type: "group",
+            changeTypes: []
           },
           changed: false,
           children: this.populateProfileChildren(group)
@@ -213,7 +215,9 @@ let ProfileService = {
           description: {
             src: { value: segRef["$"].description },
             derived: {}
-          }
+          },
+          changeTypes: []
+
         },
         changed: false,
         children: [

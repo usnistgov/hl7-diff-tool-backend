@@ -29,7 +29,11 @@ let DatatypeService = {
         children: this.extractComponents(datatype.Component)
       };
 
-      if (datatype.Constraints && datatype.Constraints[0] && datatype.Constraints[0].ConformanceStatement) {
+      if (
+        datatype.Constraints &&
+        datatype.Constraints[0] &&
+        datatype.Constraints[0].ConformanceStatement
+      ) {
         let conformanceStatements = [];
         datatype.Constraints[0].ConformanceStatement.forEach(
           conformanceStatement => {
@@ -43,8 +47,11 @@ let DatatypeService = {
         result.conformanceStatements = conformanceStatements;
       }
 
-
-      if (datatype.Reasons && datatype.Reasons[0] && datatype.Reasons[0].Reason) {
+      if (
+        datatype.Reasons &&
+        datatype.Reasons[0] &&
+        datatype.Reasons[0].Reason
+      ) {
         let reasonsMap = {};
         const reasonsForChange = datatype.Reasons[0].Reason;
         reasonsForChange.forEach(reason => {
@@ -60,15 +67,17 @@ let DatatypeService = {
         result.componentReasons = reasonsMap;
       }
       if (
-        datatype.Binding && datatype.Binding[0].StructureElementBindings &&
+        datatype.Binding &&
+        datatype.Binding[0].StructureElementBindings &&
         datatype.Binding[0].StructureElementBindings[0] &&
         datatype.Binding[0].StructureElementBindings[0].StructureElementBinding
       ) {
         result.bindings = ValuesetService.extractBindings(
-          datatype.Binding[0].StructureElementBindings[0].StructureElementBinding, ""
+          datatype.Binding[0].StructureElementBindings[0]
+            .StructureElementBinding,
+          ""
         );
       }
-
     }
     return result;
   },
@@ -104,7 +113,8 @@ let DatatypeService = {
           },
           position: component.position,
           type: level === 1 ? "component" : "subcomponent",
-          path: currentPath
+          path: currentPath,
+          changeTypes: []
         },
         changed: false
       };
@@ -153,7 +163,7 @@ let DatatypeService = {
           datatypesMap[igId][component.datatype].bindings,
           configuration,
           valuesetsMap,
-          "datatype_component",
+          "datatype_component"
         );
       }
 
@@ -163,8 +173,7 @@ let DatatypeService = {
       return a.data.position - b.data.position;
     });
     return results;
-  },
-
+  }
 };
 
 module.exports = DatatypeService;

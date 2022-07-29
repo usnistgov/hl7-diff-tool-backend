@@ -28,6 +28,8 @@ let ComparisonService = {
         }
         original.changed = true;
         original.data.changed = true;
+        original.data.changeTypes.push("predicate");
+
         original.data.predicate.derived[originalId] = {
           value: derived.predicate,
         };
@@ -52,7 +54,8 @@ let ComparisonService = {
         }
         original.changed = true;
         original.data.changed = true;
-     
+        original.data.changeTypes.push("usage");
+
         const compliance = MetricService.updateUsageMetrics(
           originalId,
           originalProfile,
@@ -81,6 +84,7 @@ let ComparisonService = {
         }
         original.changed = true;
         original.data.changed = true;
+        original.data.changeTypes.push("cardinality");
 
         const compliance = MetricService.updateCardinalityMetrics(
           originalId,
