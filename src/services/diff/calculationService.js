@@ -1,15 +1,18 @@
-const ProfileService = require("./profileService");
-const ComparisonService = require("../comparisonService");
-const SegmentService = require("./segmentService");
-const ValuesetService = require("./valuesetService");
-const MetricService = require("../metricService");
+const ProfileService = require('./profileService');
+const ComparisonService = require('../comparisonService');
+const SegmentService = require('./segmentService');
+const ValuesetService = require('./valuesetService');
+const MetricService = require('../metricService');
 
-const DatatypeService = require("./datatypeService");
-const globalConfigs = require("../../../config/global");
-const _ = require("underscore");
+const DatatypeService = require('./datatypeService');
+const globalConfigs = require('../../../config/global');
+const _ = require('underscore');
+
+const xml2js = require('xml2js');
+const builder = new xml2js.Builder();
 
 let CalculationService = {
-  calculate: function(sourceProfile, derivedIgs, configuration) {
+  calculate: function (sourceProfile, derivedIgs, configuration) {
     const res = this.createDifferential(
       sourceProfile,
       derivedIgs,
@@ -23,7 +26,7 @@ let CalculationService = {
       if (configuration[conf]) {
         configRes.push({
           name: conf,
-          label: globalConfigs.configLabels[conf]
+          label: globalConfigs.configLabels[conf],
         });
       }
     }
@@ -31,18 +34,18 @@ let CalculationService = {
       profiles: [],
       srcIg: {
         title: sourceProfile.ig,
-        id: sourceProfile.id
+        id: sourceProfile.id,
       },
       derivedIgs: [],
       derivedIgsMap: {},
       configuration: [
         ...configRes,
         {
-          name: "label",
-          label: "Segment Ref."
-        }
+          name: 'label',
+          label: 'Segment Ref.',
+        },
       ],
-      segments: []
+      segments: [],
     };
     let segmentsMap = {};
     SegmentService.populateSegmentsMap(
@@ -67,21 +70,21 @@ let CalculationService = {
     if (sourceProfile.profiles) {
       const profile = sourceProfile.profiles[0];
       const confProfile = profile.ConformanceProfile[0];
-      results.srcIg.profileId = confProfile["$"].id;
+      results.srcIg.profileId = confProfile['$'].id;
       // sourceProfile.profiles.forEach(profile => {
       results.profiles.push({
         data: {
-          name: profile["$"].name,
-          description: profile["$"].description,
-          title: profile["$"].title,
-          id: profile["$"].id
+          name: profile['$'].name,
+          description: profile['$'].description,
+          title: profile['$'].title,
+          id: profile['$'].id,
         },
         children: ProfileService.populateProfileChildren(
           profile.ConformanceProfile[0]
         ),
         segmentRefs: ProfileService.populateProfileSegments(
           profile.ConformanceProfile[0],
-          "",
+          '',
           segmentsMap,
           configuration,
           sourceProfile.id,
@@ -94,15 +97,21 @@ let CalculationService = {
           configuration,
           valuesetsMap
         ),
-        conformanceStatements: this.extractConformanceStatements(
-          confProfile.Constraints[0].ConformanceStatement
-        )
+        conformanceStatements: confProfile.Constraints
+          ? this.extractConformanceStatements(
+              confProfile.Constraints[0].ConformanceStatement
+            )
+          : [],
+        //TODO: conconst
+        coConstraints: this.extractCoConstraints(
+          confProfile.coConstraintsBindingsElement
+        ),
       });
       // });
     }
 
     if (derivedIgs) {
-      derivedIgs.forEach(derivedIg => {
+      derivedIgs.forEach((derivedIg) => {
         SegmentService.populateSegmentsMap(
           segmentsMap,
           derivedIg.id,
@@ -120,13 +129,13 @@ let CalculationService = {
         );
         const profile = derivedIg.profiles[0];
         const confProfile = profile.ConformanceProfile[0];
-        const originalProfileId = confProfile["$"].origin;
+        const originalProfileId = confProfile['$'].origin;
         results.derivedIgsMap[derivedIg.id] = derivedIg.ig;
         results.derivedIgs.push({
           title: derivedIg.ig,
           id: derivedIg.id,
           profileOrigin: originalProfileId,
-          derived: confProfile["$"].derived
+          derived: confProfile['$'].derived,
         });
         this.createProfilesDiff(
           results,
@@ -138,11 +147,10 @@ let CalculationService = {
         );
       });
       const originalProfile = results.profiles[0];
-      originalProfile.segmentRefs = originalProfile.segmentRefs.filter(
-        s => s.changed
-      );
+      originalProfile.segmentRefs =
+        originalProfile.segmentRefs.filter((s) => s.changed);
     }
-    results.profiles.forEach(profile => {
+    results.profiles.forEach((profile) => {
       if (profile.reasons) {
         for (const path in profile.reasons) {
           const reason = profile.reasons[path];
@@ -153,7 +161,7 @@ let CalculationService = {
         }
       }
 
-      profile.segmentRefs.forEach(segmentRef => {
+      profile.segmentRefs.forEach((segmentRef) => {
         let child = this.getDataByPath(
           profile.children,
           segmentRef.data.path,
@@ -162,34 +170,73 @@ let CalculationService = {
         this.spreadBindings(segmentRef.children, segmentRef.bindings);
         child.children = segmentRef.children;
         child.bindings = segmentRef.bindings;
-        child.data.conformanceStatements = segmentRef.conformanceStatements.filter(
-          c => c.data.changed
-        );
+        child.data.conformanceStatements =
+          segmentRef.conformanceStatements.filter(
+            (c) => c.data.changed
+          );
 
         child.fieldReasons = segmentRef.fieldReasons;
         child.changed = segmentRef.changed;
         child.data.changed = segmentRef.changed;
         child.data.changeTypes = segmentRef.data.changeTypes;
-
       });
       this.spreadProfileBindings(profile.children, profile.bindings);
     });
 
     return results;
   },
+  extractCoConstraints(coConstraints) {
+    let results = [];
+    if (
+      coConstraints &&
+      coConstraints[0] &&
+      coConstraints[0].coConstraintBindingElement
+    ) {
+      coConstraints[0].coConstraintBindingElement.forEach(
+        (coConstraint) => {
+          const c = coConstraint.coConstraintBindingSegmentElement[0];
+          let diff = {
+            data: {
+              context: coConstraint.coConstraintContext[0],
+              segmentName: c.coConstraintSegmentName[0],
+              tables: {
+                src: { value: [] },
+                derived: {},
+              },
+            },
+          };
+          c.coConstraintTableConditionalBindingElement.forEach(
+            (table) => {
+              const t = {
+                Document:
+                  table.coConstraintsTable[0].coconstraints[0],
+              };
+              let a = builder.buildObject(t);
+              diff.data.tables.src.value.push({
+                html: a,
+              });
+            }
+          );
+
+          results.push(diff);
+        }
+      );
+    }
+    return results;
+  },
 
   extractConformanceStatements(conformanceStatements) {
     let results = [];
     if (conformanceStatements) {
-      conformanceStatements.forEach(conformanceStatement => {
+      conformanceStatements.forEach((conformanceStatement) => {
         let diff = {
           data: {
-            id: conformanceStatement["$"].identifier,
+            id: conformanceStatement['$'].identifier,
             description: {
-              src: { value: conformanceStatement["$"].description },
-              derived: {}
-            }
-          }
+              src: { value: conformanceStatement['$'].description },
+              derived: {},
+            },
+          },
         };
         results.push(diff);
       });
@@ -199,15 +246,15 @@ let CalculationService = {
   getConformanceStatementsDiff(conformanceStatements) {
     let result = [];
     if (conformanceStatements) {
-      conformanceStatements.forEach(conformanceStatement => {
+      conformanceStatements.forEach((conformanceStatement) => {
         let diff = {
           data: {
             id: conformanceStatement.id,
             description: {
               src: { value: conformanceStatement.description },
-              derived: {}
-            }
-          }
+              derived: {},
+            },
+          },
         };
         result.push(diff);
       });
@@ -223,8 +270,9 @@ let CalculationService = {
       Binding[0].StructureElementBindings[0].StructureElementBinding
     ) {
       bindings = ValuesetService.extractBindings(
-        Binding[0].StructureElementBindings[0].StructureElementBinding,
-        ""
+        Binding[0].StructureElementBindings[0]
+          .StructureElementBinding,
+        ''
       );
     }
 
@@ -233,14 +281,16 @@ let CalculationService = {
       bindings,
       configuration,
       valuesetsMap,
-      "profile"
+      'profile'
     );
     return diffBindings;
   },
   spreadBindings(fields, bindings) {
-    bindings.forEach(binding => {
-      if (binding.data.LocationInfoType === "FIELD") {
-        let field = fields.find(f => f.data.position === binding.data.position);
+    bindings.forEach((binding) => {
+      if (binding.data.LocationInfoType === 'FIELD') {
+        let field = fields.find(
+          (f) => f.data.position === binding.data.position
+        );
         if (field) {
           if (!field.data.bindings) {
             field.data.bindings = [];
@@ -248,135 +298,145 @@ let CalculationService = {
           field.data.bindings.push(binding);
         }
       }
-      if (binding.data.LocationInfoType === "COMPONENT") {
-        const paths = binding.data.path.split(".");
+      if (binding.data.LocationInfoType === 'COMPONENT') {
+        const paths = binding.data.path.split('.');
         if (paths.length === 2) {
-          let field = fields.find(f => f.data.position === paths[0]);
+          let field = fields.find(
+            (f) => f.data.position === paths[0]
+          );
           if (field && field.children) {
             const component = field.children.find(
-              c => c.data.position === paths[1]
+              (c) => c.data.position === paths[1]
             );
             if (component) {
               component.data.bindings = this.overrideBinding(
                 component.data.bindings,
                 binding,
-                "segment"
+                'segment'
               );
             }
           }
         } else {
-          console.error("ERROR");
+          console.error('ERROR');
         }
       }
-      if (binding.data.LocationInfoType === "SUBCOMPONENT") {
-        const paths = binding.data.path.split(".");
+      if (binding.data.LocationInfoType === 'SUBCOMPONENT') {
+        const paths = binding.data.path.split('.');
         if (paths.length === 3) {
-          let field = fields.find(f => f.data.position === paths[0]);
+          let field = fields.find(
+            (f) => f.data.position === paths[0]
+          );
           if (field && field.children) {
             const component = field.children.find(
-              c => c.data.position === paths[1]
+              (c) => c.data.position === paths[1]
             );
             if (component && component.children) {
               const subcomponent = component.children.find(
-                c => c.data.position === paths[2]
+                (c) => c.data.position === paths[2]
               );
               if (subcomponent) {
                 subcomponent.data.bindings = this.overrideBinding(
                   subcomponent.data.bindings,
                   binding,
-                  "segment"
+                  'segment'
                 );
               }
             }
           }
         } else {
-          console.error("ERROR");
+          console.error('ERROR');
         }
       }
     });
   },
   spreadProfileBindings(segments, bindings) {
-    bindings.forEach(binding => {
-      if (binding.data.LocationInfoType === "FIELD") {
-        const paths = binding.data.path.split(".");
+    bindings.forEach((binding) => {
+      if (binding.data.LocationInfoType === 'FIELD') {
+        const paths = binding.data.path.split('.');
         if (paths.length === 2) {
-          let segment = segments.find(s => s.data.position === paths[0]);
+          let segment = segments.find(
+            (s) => s.data.position === paths[0]
+          );
           if (segment && segment.children) {
             let field = segment.children.find(
-              f => f.data.position === paths[1]
+              (f) => f.data.position === paths[1]
             );
             if (field) {
               field.data.bindings = this.overrideBinding(
                 field.data.bindings,
                 binding,
-                "profile"
+                'profile'
               );
             }
           }
         } else {
-          console.error("ERROR");
+          console.error('ERROR');
         }
       }
-      if (binding.data.LocationInfoType === "COMPONENT") {
-        const paths = binding.data.path.split(".");
+      if (binding.data.LocationInfoType === 'COMPONENT') {
+        const paths = binding.data.path.split('.');
         if (paths.length === 3) {
-          let segment = segments.find(s => s.data.position === paths[0]);
+          let segment = segments.find(
+            (s) => s.data.position === paths[0]
+          );
           if (segment && segment.children) {
             let field = segment.children.find(
-              f => f.data.position === paths[1]
+              (f) => f.data.position === paths[1]
             );
             if (field && field.children) {
               const component = field.children.find(
-                c => c.data.position === paths[2]
+                (c) => c.data.position === paths[2]
               );
               if (component) {
                 component.data.bindings = this.overrideBinding(
                   component.data.bindings,
                   binding,
-                  "profile"
+                  'profile'
                 );
               }
             }
           }
         } else {
-          console.error("ERROR");
+          console.error('ERROR');
         }
       }
-      if (binding.data.LocationInfoType === "SUBCOMPONENT") {
-        const paths = binding.data.path.split(".");
+      if (binding.data.LocationInfoType === 'SUBCOMPONENT') {
+        const paths = binding.data.path.split('.');
         if (paths.length === 4) {
-          let segment = segments.find(s => s.data.position === paths[0]);
+          let segment = segments.find(
+            (s) => s.data.position === paths[0]
+          );
           if (segment && segment.children) {
             let field = segment.children.find(
-              f => f.data.position === paths[1]
+              (f) => f.data.position === paths[1]
             );
             if (field && field.children) {
               const component = field.children.find(
-                c => c.data.position === paths[2]
+                (c) => c.data.position === paths[2]
               );
               if (component && component.children) {
                 const subcomponent = component.children.find(
-                  c => c.data.position === paths[3]
+                  (c) => c.data.position === paths[3]
                 );
                 if (subcomponent) {
                   subcomponent.data.bindings = this.overrideBinding(
                     subcomponent.data.bindings,
                     binding,
-                    "profile"
+                    'profile'
                   );
                 }
               }
             }
           }
         } else {
-          console.error("ERROR");
+          console.error('ERROR');
         }
       }
     });
   },
   overrideBinding(bindings, newBinding, context) {
     if (bindings) {
-      bindings.forEach(binding => {
+      bindings.forEach((binding) => {
         // binding.data.context = context;
         for (const igId in newBinding.data.valuesets.derived) {
           binding.data.locations.derived[igId] =
@@ -385,10 +445,11 @@ let CalculationService = {
             newBinding.data.strength.derived[igId];
           // binding.data.valuesets.derived[igId] =
           //   newBinding.data.valuesets.derived[igId];
-          binding.data.valuesets.derived[igId] = this.compareBindingValuesets(
-            binding.data.valuesets.src.value,
-            newBinding.data.valuesets.derived[igId].value
-          );
+          binding.data.valuesets.derived[igId] =
+            this.compareBindingValuesets(
+              binding.data.valuesets.src.value,
+              newBinding.data.valuesets.derived[igId].value
+            );
 
           binding.data.context.derived[igId] = { value: context };
           if (newBinding.data.codes.derived) {
@@ -397,7 +458,9 @@ let CalculationService = {
           }
           binding.changed = true;
           binding.data.changed = true;
-          binding.data.changeTypes.push("valueset");
+          if (binding.data.changeTypes) {
+            binding.data.changeTypes.push('valueset');
+          }
         }
       });
 
@@ -408,15 +471,15 @@ let CalculationService = {
   },
   compareBindingValuesets(oldValuesets, newValuesets) {
     if (newValuesets) {
-      newValuesets.forEach(newValueset => {
+      newValuesets.forEach((newValueset) => {
         if (oldValuesets) {
           const vs = oldValuesets.find(
-            v =>
+            (v) =>
               v.bindingIdentifier === newValueset.bindingIdentifier &&
               v.version === newValueset.version
           );
           if (!vs) {
-            newValueset.status = "added";
+            newValueset.status = 'added';
           }
         }
       });
@@ -424,29 +487,35 @@ let CalculationService = {
     return { value: newValuesets };
   },
   spreadDatatypeBindings(components, bindings, context) {
-    bindings.forEach(binding => {
-      if (binding.data.LocationInfoType === "COMPONENT") {
+    bindings.forEach((binding) => {
+      if (binding.data.LocationInfoType === 'COMPONENT') {
         if (components) {
           let component = components.find(
-            f => f.data.position === binding.data.position
+            (f) => f.data.position === binding.data.position
           );
           if (component) {
-            if (context === "datatype_component") {
+            if (context === 'datatype_component') {
               if (!component.data.bindings) {
                 component.data.bindings = [];
               }
               if (component.data.bindings.length === 0) {
                 component.data.bindings.push(binding);
               } else {
-                if (!component.data.bindings[0].data.locations.src.value) {
+                if (
+                  !component.data.bindings[0].data.locations.src.value
+                ) {
                   component.data.bindings[0].data.locations.src.value =
                     binding.data.locations.src.value;
                 }
-                if (!component.data.bindings[0].data.strength.src.value) {
+                if (
+                  !component.data.bindings[0].data.strength.src.value
+                ) {
                   component.data.bindings[0].data.strength.src.value =
                     binding.data.strength.src.value;
                 }
-                if (!component.data.bindings[0].data.valuesets.src.value) {
+                if (
+                  !component.data.bindings[0].data.valuesets.src.value
+                ) {
                   component.data.bindings[0].data.valuesets.src.value =
                     binding.data.valuesets.src.value;
                 }
@@ -461,7 +530,7 @@ let CalculationService = {
                 }
               }
             }
-            if (context === "datatype_field") {
+            if (context === 'datatype_field') {
               component.data.bindings = this.overrideBinding(
                 component.data.bindings,
                 binding,
@@ -471,13 +540,15 @@ let CalculationService = {
           }
         }
       }
-      if (binding.data.LocationInfoType === "SUBCOMPONENT") {
-        const paths = binding.data.path.split(".");
+      if (binding.data.LocationInfoType === 'SUBCOMPONENT') {
+        const paths = binding.data.path.split('.');
         if (paths.length === 2) {
-          let component = components.find(f => f.data.position === paths[0]);
+          let component = components.find(
+            (f) => f.data.position === paths[0]
+          );
           if (component && component.children) {
             const subcomponent = component.children.find(
-              c => c.data.position === paths[1]
+              (c) => c.data.position === paths[1]
             );
             if (subcomponent) {
               subcomponent.data.bindings = this.overrideBinding(
@@ -488,43 +559,47 @@ let CalculationService = {
             }
           }
         } else {
-          console.error("ERROR");
+          console.error('ERROR');
         }
       }
     });
   },
   getDataByPath(data, path, changed) {
-    const paths = path.split(".");
+    const paths = path.split('.');
 
     if (paths.length < 2) {
       const result = data.find(
-        d => d.data.position.toString() === paths[0].toString()
+        (d) => d.data.position.toString() === paths[0].toString()
       );
       return result;
     } else {
-      const newData = data.find(d => d.data.position === path[0]);
+      const newData = data.find((d) => d.data.position === path[0]);
       paths.shift();
       if (newData && newData.children) {
         newData.changed = changed;
         newData.data.changed = changed;
 
-        return this.getDataByPath(newData.children, paths.join("."), changed);
+        return this.getDataByPath(
+          newData.children,
+          paths.join('.'),
+          changed
+        );
       }
     }
   },
   getChildByPath(data, path) {
-    const paths = path.split(".");
+    const paths = path.split('.');
 
     if (paths.length < 2) {
       const result = data.find(
-        d => d.data.position.toString() === paths[0].toString()
+        (d) => d.data.position.toString() === paths[0].toString()
       );
       return result;
     } else {
-      const newData = data.find(d => d.data.position === path[0]);
+      const newData = data.find((d) => d.data.position === path[0]);
       paths.shift();
       if (newData && newData.children) {
-        return this.getChildByPath(newData.children, paths.join("."));
+        return this.getChildByPath(newData.children, paths.join('.'));
       }
     }
   },
@@ -565,6 +640,12 @@ let CalculationService = {
             confProfile,
             configuration
           );
+          this.createCoConstraintsDiff(
+            derivedIg.id,
+            originalProfile,
+            confProfile,
+            configuration
+          );
 
           this.createProfileSegmentsDiff(
             diff,
@@ -587,20 +668,72 @@ let CalculationService = {
       // });
     }
   },
+  createCoConstraintsDiff(
+    derivedIgId,
+    originalProfile,
+    derivedProfile,
+    configuration
+  ) {
+    if (
+      configuration.coConstraint &&
+      derivedProfile.coConstraintsBindingsElement &&
+      derivedProfile.coConstraintsBindingsElement[0]
+    ) {
+      let coConstraints = [];
+      const coConstraintsObj =
+        derivedProfile.coConstraintsBindingsElement[0]
+          .coConstraintBindingElement;
+      if (coConstraintsObj) {
+        coConstraintsObj.forEach((coConstraint) => {
+          let c = {
+            context: coConstraint.coConstraintContext[0],
+            segmentName:
+              coConstraint.coConstraintBindingSegmentElement[0]
+                .coConstraintSegmentName[0],
+            tables: [],
+          };
+          coConstraint.coConstraintBindingSegmentElement[0].coConstraintTableConditionalBindingElement.forEach(
+            (table) => {
+              const t = {
+                Document:
+                  table.coConstraintsTable[0].coconstraints[0],
+              };
+              let a = builder.buildObject(t);
+              c.tables.push({
+                html: a,
+              });
+            }
+          );
+          coConstraints.push(c);
+        });
+        this.compareCoConstraints(
+          originalProfile,
+          derivedIgId,
+          coConstraints
+        );
+      }
+    }
+  },
   createConfStatementsDiff(
     derivedIgId,
     originalProfile,
     derivedProfile,
     configuration
   ) {
-    if (derivedProfile.Constraints && configuration.conformanceStatement) {
+    if (
+      derivedProfile.Constraints &&
+      configuration.conformanceStatement
+    ) {
       let conformanceStatements = [];
-      if (derivedProfile.Constraints && derivedProfile.Constraints[0]) {
+      if (
+        derivedProfile.Constraints &&
+        derivedProfile.Constraints[0]
+      ) {
         derivedProfile.Constraints[0].ConformanceStatement.forEach(
-          conformanceStatement => {
+          (conformanceStatement) => {
             conformanceStatements.push({
-              id: conformanceStatement["$"].identifier,
-              description: conformanceStatement["$"].description
+              id: conformanceStatement['$'].identifier,
+              description: conformanceStatement['$'].description,
             });
           }
         );
@@ -632,7 +765,7 @@ let CalculationService = {
         bindings = ValuesetService.extractBindings(
           derivedProfile.Binding[0].StructureElementBindings[0]
             .StructureElementBinding,
-          ""
+          ''
         );
       }
       this.compareBindings(
@@ -641,7 +774,7 @@ let CalculationService = {
         derivedIgId,
         bindings,
         valuesetsMap,
-        "profile",
+        'profile',
         originalProfile
       );
     }
@@ -663,7 +796,7 @@ let CalculationService = {
         segmentRefs.push(
           ...ProfileService.extractSegmentFromSegRefs(
             derivedProfile.SegmentRef,
-            "",
+            '',
             segmentsMap,
             configuration,
             derivedIgId,
@@ -676,7 +809,7 @@ let CalculationService = {
         segmentRefs.push(
           ...ProfileService.extractSegmentFromGroups(
             derivedProfile.Group,
-            "",
+            '',
             segmentsMap,
             configuration,
             derivedIgId,
@@ -686,10 +819,12 @@ let CalculationService = {
         );
       }
       if (configuration.segmentRef) {
-        segmentRefs.forEach(segmentRef => {
-          const sourceSegment = originalProfile.segmentRefs.find(s => {
-            return s.data.path === segmentRef.data.path;
-          });
+        segmentRefs.forEach((segmentRef) => {
+          const sourceSegment = originalProfile.segmentRefs.find(
+            (s) => {
+              return s.data.path === segmentRef.data.path;
+            }
+          );
 
           if (sourceSegment) {
             // compare sourceSegment.data.idSeg && segmentRef.data.idSeg
@@ -699,7 +834,9 @@ let CalculationService = {
               sourceSegment,
               differential.srcIg.id,
               derivedIgId,
-              segmentsMap[differential.srcIg.id][sourceSegment.data.idSeg],
+              segmentsMap[differential.srcIg.id][
+                sourceSegment.data.idSeg
+              ],
               segmentsMap[derivedIgId][segmentRef.data.idSeg],
               configuration,
               datatypesMap,
@@ -756,7 +893,7 @@ let CalculationService = {
           derivedIgId,
           derivedSegment.bindings,
           valuesetsMap,
-          "segment",
+          'segment',
           originalProfile
         );
       }
@@ -771,12 +908,86 @@ let CalculationService = {
       if (sourceSegment.changed) {
         if (!sourceSegment.data.label.derived[derivedIgId]) {
           sourceSegment.data.label.derived[derivedIgId] = {
-            value: derivedSegment.label
+            value: derivedSegment.label,
           };
         }
       }
-      sourceSegment.children.sort(function(a, b) {
+      sourceSegment.children.sort(function (a, b) {
         return a.data.position - b.data.position;
+      });
+    }
+  },
+  compareCoConstraints(
+    differential,
+    derivedIgId,
+    derivedCoConstraints
+  ) {
+    if (derivedCoConstraints) {
+      derivedCoConstraints.forEach((derivedCoConstraint) => {
+        let coConstraintDifferential =
+          differential.coConstraints.find(
+            (c) =>
+              c.data.context === derivedCoConstraint.context &&
+              c.data.segmentName === derivedCoConstraint.segmentName
+          );
+        if (!coConstraintDifferential) {
+          //coConstraint added
+          let diff = {
+            data: {
+              context: derivedCoConstraint.context,
+              segmentName: derivedCoConstraint.segmentName,
+              tables: {
+                derived: {},
+              },
+            },
+          };
+          diff.data.tables.derived[derivedIgId] = {
+            value: {
+              html: derivedCoConstraint.tables,
+            },
+            status: 'added',
+          };
+          differential.coConstraints.push(diff);
+        } else {
+          // coConstraint found in diff. it may either be added from a previous calculated profile or it was in the original one. Need to compare based on another variable
+          if (coConstraintDifferential.data.tables.src.value) {
+            // table was in the src profile. Need to compare the 2 tables
+            derivedCoConstraint.tables.forEach((table, i) => {
+              let originalTable =
+                coConstraintDifferential.data.tables.src.value[i];
+              if (originalTable) {
+                //compare the two tables
+                if (originalTable.html !== table.html) {
+                  //table changed
+                  if (
+                    !coConstraintDifferential.data.tables.derived[
+                      derivedIgId
+                    ]
+                  ) {
+                    coConstraintDifferential.data.tables.derived[
+                      derivedIgId
+                    ] = {
+                      value: {
+                        html: derivedCoConstraint.tables,
+                      },
+                      status: 'changed',
+                    };
+                  }
+                } else {
+                }
+              } else {
+                //table added?
+              }
+            });
+          } else {
+            // Tables was added
+          }
+        }
+
+        // console.log(coConstraintDifferential);
+      });
+      differential.coConstraints.forEach((constraint) => {
+        let c = differential.coConstraints;
       });
     }
   },
@@ -786,23 +997,26 @@ let CalculationService = {
     derivedConfStatements
   ) {
     if (derivedConfStatements) {
-      derivedConfStatements.forEach(derivedConfStatement => {
-        let confStatementDifferential = differential.conformanceStatements.find(
-          c => c.data.id === derivedConfStatement.id
-        );
+      derivedConfStatements.forEach((derivedConfStatement) => {
+        let confStatementDifferential =
+          differential.conformanceStatements.find(
+            (c) => c.data.id === derivedConfStatement.id
+          );
         if (confStatementDifferential) {
           if (
             confStatementDifferential.data.description.src.value !==
             derivedConfStatement.description
           ) {
             // statement changed
-            confStatementDifferential.data.description.derived[derivedIgId] = {
+            confStatementDifferential.data.description.derived[
+              derivedIgId
+            ] = {
               value: derivedConfStatement.description,
-              status: "changed"
+              status: 'changed',
             };
             differential.changed = true;
-            if (differential.changeTypes){
-              differential.changeTypes.push("conformanceStatement");
+            if (differential.changeTypes) {
+              differential.changeTypes.push('conformanceStatement');
             }
 
             confStatementDifferential.data.changed = true;
@@ -814,39 +1028,43 @@ let CalculationService = {
               id: derivedConfStatement.id,
               description: {
                 src: {},
-                derived: {}
-              }
-            }
+                derived: {},
+              },
+            },
           };
           diff.data.description.derived[derivedIgId] = {
             value: derivedConfStatement.description,
-            status: "added"
+            status: 'added',
           };
           differential.changed = true;
-          if (differential.changeTypes){
-            differential.changeTypes.push("conformanceStatement");
+          if (differential.changeTypes) {
+            differential.changeTypes.push('conformanceStatement');
           }
           differential.conformanceStatements.push(diff);
         }
       });
-      differential.conformanceStatements.forEach(conformanceStatement => {
-        let confStatementDifferential = derivedConfStatements.find(
-          c => c.id === conformanceStatement.data.id
-        );
-        if (!confStatementDifferential) {
-          //statement deleted
+      differential.conformanceStatements.forEach(
+        (conformanceStatement) => {
+          let confStatementDifferential = derivedConfStatements.find(
+            (c) => c.id === conformanceStatement.data.id
+          );
+          if (!confStatementDifferential) {
+            //statement deleted
 
-          conformanceStatement.data.description.derived[derivedIgId] = {
-            value: conformanceStatement.data.description.src.value,
-            status: "deleted"
-          };
-          differential.changed = true;
-          if (differential.changeTypes){
-            differential.changeTypes.push("conformanceStatement");
+            conformanceStatement.data.description.derived[
+              derivedIgId
+            ] = {
+              value: conformanceStatement.data.description.src.value,
+              status: 'deleted',
+            };
+            differential.changed = true;
+            if (differential.changeTypes) {
+              differential.changeTypes.push('conformanceStatement');
+            }
+            conformanceStatement.data.changed = true;
           }
-          conformanceStatement.data.changed = true;
         }
-      });
+      );
     }
   },
   compareBindings(
@@ -861,35 +1079,38 @@ let CalculationService = {
     let changed = false;
 
     if (derivedBindings) {
-      derivedBindings.forEach(derivedBinding => {
+      derivedBindings.forEach((derivedBinding) => {
         let bindingDifferential = differential.bindings.find(
-          b => b.data && b.data.path === derivedBinding.path
+          (b) => b.data && b.data.path === derivedBinding.path
         );
 
         if (bindingDifferential) {
           bindingDifferential.data.context.derived[derivedIgId] = {
-            value: context
+            value: context,
           };
           if (
             derivedBinding.strength !=
             bindingDifferential.data.strength.src.value
           ) {
-            if (!bindingDifferential.data.strength.derived[derivedIgId]) {
+            if (
+              !bindingDifferential.data.strength.derived[derivedIgId]
+            ) {
               differential.changed = true;
               differential.data.changed = true;
-              differential.data.changeTypes.push("valueset");
+              differential.data.changeTypes.push('valueset');
               bindingDifferential.changed = true;
               bindingDifferential.data.changed = true;
               changed = true;
               const compliance = MetricService.updateBindingMetrics(
                 derivedIgId,
                 originalProfile,
-                "strength"
+                'strength'
               );
-              bindingDifferential.data.strength.derived[derivedIgId] = {
-                value: derivedBinding.strength,
-                compliance
-              };
+              bindingDifferential.data.strength.derived[derivedIgId] =
+                {
+                  value: derivedBinding.strength,
+                  compliance,
+                };
             }
           }
 
@@ -901,21 +1122,25 @@ let CalculationService = {
             bindingDifferential.data.locations.src.value
           );
           if (locationsDiff && locationsDiff.length > 0) {
-            if (!bindingDifferential.data.locations.derived[derivedIgId]) {
+            if (
+              !bindingDifferential.data.locations.derived[derivedIgId]
+            ) {
               differential.changed = true;
               differential.data.changed = true;
-              differential.data.changeTypes.push("valueset");
+              differential.data.changeTypes.push('valueset');
               bindingDifferential.changed = true;
               bindingDifferential.data.changed = true;
               changed = true;
               const compliance = MetricService.updateBindingMetrics(
                 derivedIgId,
                 originalProfile,
-                "location"
+                'location'
               );
-              bindingDifferential.data.locations.derived[derivedIgId] = {
+              bindingDifferential.data.locations.derived[
+                derivedIgId
+              ] = {
                 value: derivedLocations,
-                compliance
+                compliance,
               };
             }
           }
@@ -926,51 +1151,59 @@ let CalculationService = {
               valuesetsMap[derivedIgId][vs] &&
               bindingDifferential.data.valuesets.src.value
             ) {
-              const srcVs = bindingDifferential.data.valuesets.src.value.find(
-                v => {
-                  return (
-                    v.version === derivedBinding.versions[i] &&
-                    v.bindingIdentifier === vs
-                  );
-                }
-              );
+              const srcVs =
+                bindingDifferential.data.valuesets.src.value.find(
+                  (v) => {
+                    return (
+                      v.version === derivedBinding.versions[i] &&
+                      v.bindingIdentifier === vs
+                    );
+                  }
+                );
 
               if (srcVs) {
                 // compare codes
 
                 const comparedCodes = ValuesetService.compareCodes(
-                  valuesetsMap[srcIgId][srcVs.bindingIdentifier][srcVs.version]
-                    .children,
-                  valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
-                    .children
+                  valuesetsMap[srcIgId][srcVs.bindingIdentifier][
+                    srcVs.version
+                  ].children,
+                  valuesetsMap[derivedIgId][vs][
+                    derivedBinding.versions[i]
+                  ].children
                 );
 
                 let diff = {
                   bindingIdentifier: vs,
                   version: derivedBinding.versions[i],
-                  status: "unchanged"
+                  status: 'unchanged',
                 };
                 if (comparedCodes.changed) {
                   differential.changed = true;
                   differential.data.changed = true;
-                  differential.data.changeTypes.push("valueset");
+                  differential.data.changeTypes.push('valueset');
                   bindingDifferential.changed = true;
                   bindingDifferential.data.changed = true;
                   bindingDifferential.data.showCodes = true;
                   changed = true;
-                  diff.status = "changed";
+                  diff.status = 'changed';
                   diff.codes = comparedCodes.list;
-                  const compliance = MetricService.updateBindingMetrics(
-                    derivedIgId,
-                    originalProfile,
-                    "codes"
-                  );
+                  const compliance =
+                    MetricService.updateBindingMetrics(
+                      derivedIgId,
+                      originalProfile,
+                      'codes'
+                    );
                   if (
-                    !bindingDifferential.data.valuesets.derived[derivedIgId]
+                    !bindingDifferential.data.valuesets.derived[
+                      derivedIgId
+                    ]
                   ) {
-                    bindingDifferential.data.valuesets.derived[derivedIgId] = {
+                    bindingDifferential.data.valuesets.derived[
+                      derivedIgId
+                    ] = {
                       value: [],
-                      compliance
+                      compliance,
                     };
                   }
                   bindingDifferential.data.valuesets.derived[
@@ -984,13 +1217,21 @@ let CalculationService = {
                   //     derivedBinding.versions[i]
                   //   ].children;
                   if (
-                    !bindingDifferential.data.valuesets.derived[derivedIgId]
+                    !bindingDifferential.data.valuesets.derived[
+                      derivedIgId
+                    ]
                   ) {
-                    bindingDifferential.data.valuesets.derived[derivedIgId] = {
-                      value: []
+                    bindingDifferential.data.valuesets.derived[
+                      derivedIgId
+                    ] = {
+                      value: [],
                     };
                   }
-                  if (bindingDifferential.data.valuesets.derived[derivedIgId])
+                  if (
+                    bindingDifferential.data.valuesets.derived[
+                      derivedIgId
+                    ]
+                  )
                     bindingDifferential.data.valuesets.derived[
                       derivedIgId
                     ].value.push(diff);
@@ -999,7 +1240,7 @@ let CalculationService = {
                 // New Value set added to binding
                 differential.changed = true;
                 differential.data.changed = true;
-                differential.data.changeTypes.push("valueset");
+                differential.data.changeTypes.push('valueset');
                 bindingDifferential.changed = true;
                 bindingDifferential.data.changed = true;
                 bindingDifferential.data.showCodes = true;
@@ -1007,13 +1248,19 @@ let CalculationService = {
                 const compliance = MetricService.updateBindingMetrics(
                   derivedIgId,
                   originalProfile,
-                  "vs"
+                  'vs'
                 );
 
-                if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
-                  bindingDifferential.data.valuesets.derived[derivedIgId] = {
+                if (
+                  !bindingDifferential.data.valuesets.derived[
+                    derivedIgId
+                  ]
+                ) {
+                  bindingDifferential.data.valuesets.derived[
+                    derivedIgId
+                  ] = {
                     value: [],
-                    compliance
+                    compliance,
                   };
                 }
                 bindingDifferential.data.valuesets.derived[
@@ -1022,129 +1269,145 @@ let CalculationService = {
                   bindingIdentifier: vs,
                   version: derivedBinding.versions[i],
                   codes:
-                    valuesetsMap[derivedIgId][vs][derivedBinding.versions[i]]
-                      .children,
-                  status: "added"
+                    valuesetsMap[derivedIgId][vs][
+                      derivedBinding.versions[i]
+                    ].children,
+                  status: 'added',
                 });
               }
             }
           });
           if (bindingDifferential.data.valuesets.src.value) {
-            bindingDifferential.data.valuesets.src.value.forEach(valueset => {
-              let vs = derivedBinding.valuesets.find((v, i) => {
-                return (
-                  derivedBinding.versions[i] === valueset.version &&
-                  v === valueset.bindingIdentifier
-                );
-              });
-              if (!vs) {
-                //vs removed from binding
-                differential.changed = true;
-                differential.data.changed = true;
-                differential.data.changeTypes.push("valueset");
-                bindingDifferential.changed = true;
-                bindingDifferential.data.changed = true;
-                bindingDifferential.data.showCodes = true;
-                changed = true;
-                if (!bindingDifferential.data.valuesets.derived[derivedIgId]) {
-                  bindingDifferential.data.valuesets.derived[derivedIgId] = {
-                    value: []
-                  };
-                }
-
-                bindingDifferential.data.valuesets.derived[
-                  derivedIgId
-                ].value.push({
-                  bindingIdentifier: valueset.bindingIdentifier,
-                  codes:
-                    valuesetsMap[derivedIgId][valueset.bindingIdentifier] &&
-                    valuesetsMap[derivedIgId][valueset.bindingIdentifier][
-                      valueset.version
-                    ]
-                      ? valuesetsMap[derivedIgId][valueset.bindingIdentifier][
-                          valueset.version
-                        ].children
-                      : [],
-                  status: "deleted"
+            bindingDifferential.data.valuesets.src.value.forEach(
+              (valueset) => {
+                let vs = derivedBinding.valuesets.find((v, i) => {
+                  return (
+                    derivedBinding.versions[i] === valueset.version &&
+                    v === valueset.bindingIdentifier
+                  );
                 });
+                if (!vs) {
+                  //vs removed from binding
+                  differential.changed = true;
+                  differential.data.changed = true;
+                  differential.data.changeTypes.push('valueset');
+                  bindingDifferential.changed = true;
+                  bindingDifferential.data.changed = true;
+                  bindingDifferential.data.showCodes = true;
+                  changed = true;
+                  if (
+                    !bindingDifferential.data.valuesets.derived[
+                      derivedIgId
+                    ]
+                  ) {
+                    bindingDifferential.data.valuesets.derived[
+                      derivedIgId
+                    ] = {
+                      value: [],
+                    };
+                  }
+
+                  bindingDifferential.data.valuesets.derived[
+                    derivedIgId
+                  ].value.push({
+                    bindingIdentifier: valueset.bindingIdentifier,
+                    codes:
+                      valuesetsMap[derivedIgId][
+                        valueset.bindingIdentifier
+                      ] &&
+                      valuesetsMap[derivedIgId][
+                        valueset.bindingIdentifier
+                      ][valueset.version]
+                        ? valuesetsMap[derivedIgId][
+                            valueset.bindingIdentifier
+                          ][valueset.version].children
+                        : [],
+                    status: 'deleted',
+                  });
+                }
               }
-            });
+            );
           }
         } else {
           // Added binding
           // TODO: update compliance
           differential.changed = true;
           differential.data.changed = true;
-          differential.data.changeTypes.push("valueset");
+          differential.data.changeTypes.push('valueset');
           changed = true;
           let newBindingDifferential = {
             data: {
-              status: "added",
+              status: 'added',
               showCodes: true,
               changed: true,
               position: derivedBinding.position,
               path: derivedBinding.path,
               context: {
                 src: {},
-                derived: {}
+                derived: {},
               },
               bindingLocation: derivedBinding.bindingLocation,
               locations: {
                 src: {},
-                derived: {}
+                derived: {},
               },
               LocationInfoType: derivedBinding.LocationInfoType,
               strength: {
                 src: {
                   // value: derivedBinding.strength
                 },
-                derived: {}
+                derived: {},
               },
               valuesets: {
                 src: {},
-                derived: {}
+                derived: {},
               },
               codes: ValuesetService.buildSrcCodes(
                 derivedBinding.valuesets,
                 derivedBinding.versions,
                 valuesetsMap,
                 derivedIgId
-              )
+              ),
             },
-            changed: true
+            changed: true,
           };
           newBindingDifferential.data.context.derived[derivedIgId] = {
-            value: context
+            value: context,
           };
-          newBindingDifferential.data.strength.derived[derivedIgId] = {
-            value: derivedBinding.strength
-          };
-          newBindingDifferential.data.locations.derived[derivedIgId] = {
-            value: ValuesetService.extractLocations(derivedBinding.locations)
-          };
-          newBindingDifferential.data.valuesets.derived[derivedIgId] = {
-            value: ValuesetService.extractVSWithVersion(
-              derivedBinding.valuesets,
-              derivedBinding.versions,
-              valuesetsMap,
-              derivedIgId
-            )
-          };
+          newBindingDifferential.data.strength.derived[derivedIgId] =
+            {
+              value: derivedBinding.strength,
+            };
+          newBindingDifferential.data.locations.derived[derivedIgId] =
+            {
+              value: ValuesetService.extractLocations(
+                derivedBinding.locations
+              ),
+            };
+          newBindingDifferential.data.valuesets.derived[derivedIgId] =
+            {
+              value: ValuesetService.extractVSWithVersion(
+                derivedBinding.valuesets,
+                derivedBinding.versions,
+                valuesetsMap,
+                derivedIgId
+              ),
+            };
           if (!differential.bindings) {
             differential.bindings = [];
           }
           differential.bindings.push(newBindingDifferential);
         }
       });
-      differential.bindings.forEach(binding => {
+      differential.bindings.forEach((binding) => {
         let derivedBinding = derivedBindings.find(
-          b => binding.data && binding.data.path === b.path
+          (b) => binding.data && binding.data.path === b.path
         );
-        if (!derivedBinding && binding.data.status !== "added") {
+        if (!derivedBinding && binding.data.status !== 'added') {
           //binding removed
           differential.changed = true;
           differential.data.changed = true;
-          differential.data.changeTypes.push("valueset");
+          differential.data.changeTypes.push('valueset');
           binding.changed = true;
           binding.data.changed = true;
           changed = true;
@@ -1152,19 +1415,19 @@ let CalculationService = {
             binding.data.derived = {};
           }
           binding.data.derived[derivedIgId] = {
-            status: "deleted"
+            status: 'deleted',
           };
           binding.data.locations.derived[derivedIgId] = {
             value: binding.data.locations.src.value,
-            status: "deleted"
+            status: 'deleted',
           };
           binding.data.strength.derived[derivedIgId] = {
             value: binding.data.strength.src.value,
-            status: "deleted"
+            status: 'deleted',
           };
           binding.data.valuesets.derived[derivedIgId] = {
             value: binding.data.valuesets.src.value,
-            status: "deleted"
+            status: 'deleted',
           };
         }
       });
@@ -1185,32 +1448,33 @@ let CalculationService = {
   ) {
     if (derivedFields.length >= segmentDifferential.children.length) {
       // New field may have been added. Need to check if the field from segmentDifferential was in the src profile or was added from a comparison of another derived profile (check for .added field)
-      derivedFields.forEach(derivedField => {
+      derivedFields.forEach((derivedField) => {
         let fieldDifferential = segmentDifferential.children.find(
-          c => c.data.position === derivedField.position
+          (c) => c.data.position === derivedField.position
         );
         if (fieldDifferential) {
           if (fieldDifferential.data.added) {
             // field wasn't in the src profile but was added in a previous comparison
             fieldDifferential.data.name.derived[derivedIgId] = {
               value: derivedField.name,
-              status: "added"
+              status: 'added',
             };
             fieldDifferential.data.usage.derived[derivedIgId] = {
               value: derivedField.usage,
-              status: "added"
+              status: 'added',
             };
             fieldDifferential.data.datatype.derived[derivedIgId] = {
               value: derivedField.datatype,
-              status: "added"
+              status: 'added',
             };
             fieldDifferential.data.predicate.derived[derivedIgId] = {
               value: derivedField.predicate,
-              status: "added"
+              status: 'added',
             };
             //TODO: Think about binding. It's in the list of parent.
           } else {
             // field was in src profile. Just need to compare
+
             this.compareFieldsData(
               fieldDifferential,
               originalProfile,
@@ -1228,81 +1492,81 @@ let CalculationService = {
           // field was added
           segmentDifferential.changed = true;
           segmentDifferential.data.changed = true;
-          segmentDifferential.data.changeTypes.push("field");
+          segmentDifferential.data.changeTypes.push('field');
 
           let diff = {
             data: {
               added: true,
               name: {
                 src: null,
-                derived: {}
+                derived: {},
               },
               position: derivedField.position,
               type: derivedField.type,
               path: `${segmentDifferential.data.ref}.${derivedField.position}`,
               usage: {
                 src: null,
-                derived: {}
+                derived: {},
               },
               datatype: { src: null, derived: {} },
-              predicate: { src: null, derived: {} }
-            }
+              predicate: { src: null, derived: {} },
+            },
           };
           diff.data.name.derived[derivedIgId] = {
             value: derivedField.name,
-            status: "added"
+            status: 'added',
           };
           diff.data.usage.derived[derivedIgId] = {
             value: derivedField.usage,
-            status: "added"
+            status: 'added',
           };
           diff.data.datatype.derived[derivedIgId] = {
             value: derivedField.datatype,
-            status: "added"
+            status: 'added',
           };
           diff.data.predicate.derived[derivedIgId] = {
             value: derivedField.predicate,
-            status: "added"
+            status: 'added',
           };
           //TODO: Think about binding. It's in the list of parent.
           segmentDifferential.children.push(diff);
-          segmentDifferential.children.sort(function(a, b) {
+          segmentDifferential.children.sort(function (a, b) {
             return a.data.position - b.data.position;
           });
         }
       });
     } else {
       // fields may have been removed. Check for.added field to determine if it was removed from src
-      segmentDifferential.children.forEach(differential => {
+      segmentDifferential.children.forEach((differential) => {
         let derivedField = derivedFields.find(
-          d => d.position === differential.data.position
+          (d) => d.position === differential.data.position
         );
         if (derivedField) {
           if (differential.data.added) {
             // component added
             segmentDifferential.changed = true;
             segmentDifferential.data.changed = true;
-            segmentDifferential.data.changeTypes.push("component");
+            segmentDifferential.data.changeTypes.push('component');
 
             fieldDifferential.changed = true;
             fieldDifferential.data.changed = true;
-            fieldDifferential.data.changeTypes.push("component");
+            fieldDifferential.data.changeTypes.push('component');
 
             differential.data.name.derived[derivedIgId] = {
               value: derivedField.name,
-              status: "added"
+              status: 'added',
             };
             differential.data.usage.derived[derivedIgId] = {
               value: derivedField.usage,
-              status: "added"
+              status: 'added',
             };
             differential.data.datatype.derived[derivedIgId] = {
               value: derivedField.datatype,
-              status: "added"
+              status: 'added',
             };
             differential.data.predicate.derived[derivedIgId] = {
               value: derivedField.predicate,
-              status: "added"
+              status: 'added',
             };
             //TODO: Think about binding. It's in the list of parent.
           } else {
@@ -1326,26 +1590,26 @@ let CalculationService = {
             // field removed
             segmentDifferential.changed = true;
             segmentDifferential.data.changed = true;
-            segmentDifferential.data.changeTypes.push("field");
+            segmentDifferential.data.changeTypes.push('field');
 
             differential.changed = true;
             differential.data.changed = true;
 
             differential.data.name.derived[derivedIgId] = {
               value: differential.data.name.src.value,
-              status: "deleted"
+              status: 'deleted',
             };
             differential.data.usage.derived[derivedIgId] = {
               value: differential.data.usage.src.value,
-              status: "deleted"
+              status: 'deleted',
             };
             differential.data.datatype.derived[derivedIgId] = {
               value: differential.data.datatype.src.value,
-              status: "deleted"
+              status: 'deleted',
             };
             differential.data.predicate.derived[derivedIgId] = {
               value: differential.data.predicate.src.value,
-              status: "deleted"
+              status: 'deleted',
             };
             //TODO: Think about binding. It's in the list of parent.
           }
@@ -1379,14 +1643,14 @@ let CalculationService = {
     if (derivedField.name !== fieldDifferential.data.name.src.value) {
       segmentDifferential.changed = true;
       segmentDifferential.data.changed = true;
-      segmentDifferential.data.changeTypes.push("name");
+      segmentDifferential.data.changeTypes.push('name');
 
       fieldDifferential.changed = true;
       fieldDifferential.data.changed = true;
-      fieldDifferential.data.changeTypes.push("name");
+      fieldDifferential.data.changeTypes.push('name');
 
       fieldDifferential.data.name.derived[derivedIgId] = {
-        value: derivedField.name
+        value: derivedField.name,
       };
     }
 
@@ -1398,10 +1662,10 @@ let CalculationService = {
       if (!fieldDifferential.data.usage.derived[derivedIgId]) {
         segmentDifferential.changed = true;
         segmentDifferential.data.changed = true;
-        segmentDifferential.data.changeTypes.push("usage");
+        segmentDifferential.data.changeTypes.push('usage');
         fieldDifferential.changed = true;
         fieldDifferential.data.changed = true;
-        fieldDifferential.data.changeTypes.push("usage");
+        fieldDifferential.data.changeTypes.push('usage');
 
         const compliance = MetricService.updateUsageMetrics(
           derivedIgId,
@@ -1414,26 +1678,27 @@ let CalculationService = {
         );
         fieldDifferential.data.usage.derived[derivedIgId] = {
           value: derivedField.usage,
-          reason: "",
-          compliance
+          reason: '',
+          compliance,
         };
       }
     }
     if (
       configuration.predicate &&
-      derivedField.predicate != fieldDifferential.data.predicate.src.value
+      derivedField.predicate !=
+        fieldDifferential.data.predicate.src.value
     ) {
       if (!fieldDifferential.data.predicate.derived[derivedIgId]) {
         segmentDifferential.changed = true;
         segmentDifferential.data.changed = true;
-        segmentDifferential.data.changeTypes.push("predicate");
+        segmentDifferential.data.changeTypes.push('predicate');
 
         fieldDifferential.changed = true;
         fieldDifferential.data.changed = true;
-        fieldDifferential.data.changeTypes.push("predicate");
+        fieldDifferential.data.changeTypes.push('predicate');
 
         fieldDifferential.data.predicate.derived[derivedIgId] = {
-          value: derivedField.predicate
+          value: derivedField.predicate,
         };
       }
     }
@@ -1461,21 +1726,24 @@ let CalculationService = {
         );
         fieldDifferential.data.cardinality.derived[derivedIgId] = {
           value: card,
-          reason: "",
-          compliance
+          reason: '',
+          compliance,
         };
       }
     }
 
     if (configuration.datatype) {
-      if (derivedField.datatype != fieldDifferential.data.datatype.src.value) {
+      if (
+        derivedField.datatype !=
+        fieldDifferential.data.datatype.src.value
+      ) {
         if (!fieldDifferential.data.datatype.derived[derivedIgId]) {
           segmentDifferential.changed = true;
           segmentDifferential.data.changed = true;
-          segmentDifferential.data.changeTypes.push("datatype");
+          segmentDifferential.data.changeTypes.push('datatype');
           fieldDifferential.changed = true;
           fieldDifferential.data.changed = true;
-          fieldDifferential.data.changeTypes.push("datatype");
+          fieldDifferential.data.changeTypes.push('datatype');
 
           const compliance = MetricService.updateDatatypeMetrics(
             derivedIgId,
@@ -1488,20 +1756,74 @@ let CalculationService = {
           );
           fieldDifferential.data.datatype.derived[derivedIgId] = {
             value: derivedField.datatype,
-            reason: "",
-            compliance
+            reason: '',
+            compliance,
           };
+
+          if (!originalProfile.summaries.datatypes) {
+            console.log('!!!!!!');
+            originalProfile.summaries.datatypes = {};
+          }
+          console.log(derivedIgId);
+          const keyName = `${fieldDifferential.data.datatype.src.value}#${derivedField.datatype}`;
+          if (!originalProfile.summaries.datatypes[keyName]) {
+            originalProfile.summaries.datatypes[keyName] = {};
+          }
+          if (
+            !originalProfile.summaries.datatypes[keyName][derivedIgId]
+          ) {
+            originalProfile.summaries.datatypes[keyName][
+              derivedIgId
+            ] = {
+              number: 0,
+              // changes: [],
+            };
+          }
+
+          originalProfile.summaries.datatypes[keyName][derivedIgId]
+            .number++;
+          // originalProfile.summaries.datatypes[keyName][
+          //   derivedIgId
+          // ].changes.push({
+          //   type: fieldDifferential.data.type,
+          //   path: `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`,
+          //   name: fieldDifferential.data.name.src.value,
+          // });
+          if (!originalProfile.summaries.datatypes[keyName].changes) {
+            originalProfile.summaries.datatypes[keyName].changes = {};
+          }
+          if (
+            !originalProfile.summaries.datatypes[keyName].changes[
+              `${segmentDifferential.data.ref}.${fieldDifferential.data.position}.${fieldDifferential.data.name.src.value}`
+            ]
+          ) {
+            originalProfile.summaries.datatypes[keyName].changes[
+              `${segmentDifferential.data.ref}.${fieldDifferential.data.position}.${fieldDifferential.data.name.src.value}`
+            ] = {
+              type: fieldDifferential.data.type,
+              path: `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`,
+              name: fieldDifferential.data.name.src.value,
+              igs: {},
+            };
+          }
+          originalProfile.summaries.datatypes[keyName].changes[
+            `${segmentDifferential.data.ref}.${fieldDifferential.data.position}.${fieldDifferential.data.name.src.value}`
+          ].igs[derivedIgId] = true;
         }
       }
 
       const srcDt =
-        datatypesMap[srcIgId][fieldDifferential.data.datatype.src.value];
-      const derivedDt = datatypesMap[derivedIgId][derivedField.datatype];
+        datatypesMap[srcIgId][
+          fieldDifferential.data.datatype.src.value
+        ];
+      const derivedDt =
+        datatypesMap[derivedIgId][derivedField.datatype];
       if (configuration.conformanceStatement) {
         if (!fieldDifferential.data.conformanceStatements) {
-          fieldDifferential.data.conformanceStatements = this.getConformanceStatementsDiff(
-            srcDt.conformanceStatements
-          );
+          fieldDifferential.data.conformanceStatements =
+            this.getConformanceStatementsDiff(
+              srcDt.conformanceStatements
+            );
         }
 
         this.compareConformanceStatements(
@@ -1517,18 +1839,18 @@ let CalculationService = {
           derivedIgId,
           derivedDt.bindings,
           valuesetsMap,
-          "datatype_field",
+          'datatype_field',
           originalProfile
         );
         if (changed) {
           segmentDifferential.changed = true;
           segmentDifferential.data.changed = true;
-          segmentDifferential.data.changeTypes.push("valueset");
+          segmentDifferential.data.changeTypes.push('valueset');
         }
         this.spreadDatatypeBindings(
           fieldDifferential.children,
           fieldDifferential.bindings,
-          "datatype_field"
+          'datatype_field'
         );
       }
 
@@ -1573,11 +1895,13 @@ let CalculationService = {
     } else {
       commonDifferential = fieldDifferential;
     }
-    if (derivedComponents.length >= commonDifferential.children.length) {
+    if (
+      derivedComponents.length >= commonDifferential.children.length
+    ) {
       // New component may have been added. Need to check if the component from commonDifferential was in the src profile or was added from a comparison of another derived profile (check for .added field)
-      derivedComponents.forEach(derivedComponent => {
+      derivedComponents.forEach((derivedComponent) => {
         let differential = commonDifferential.children.find(
-          c => c.data.position === derivedComponent.position
+          (c) => c.data.position === derivedComponent.position
         );
 
         if (differential) {
@@ -1585,19 +1909,19 @@ let CalculationService = {
             // component wasn't in the src profile but was added in a previous comparison
             differential.data.name.derived[derivedIgId] = {
               value: derivedComponent.name,
-              status: "added"
+              status: 'added',
             };
             differential.data.usage.derived[derivedIgId] = {
               value: derivedComponent.usage,
-              status: "added"
+              status: 'added',
             };
             differential.data.datatype.derived[derivedIgId] = {
               value: derivedComponent.datatype,
-              status: "added"
+              status: 'added',
             };
             differential.data.predicate.derived[derivedIgId] = {
               value: derivedComponent.predicate,
-              status: "added"
+              status: 'added',
             };
             //TODO: Think about binding. It's in the list of parent.
           } else {
@@ -1621,20 +1945,20 @@ let CalculationService = {
           // component was added
           segmentDifferential.changed = true;
           segmentDifferential.data.changed = true;
-          segmentDifferential.data.changeTypes.push("component");
+          segmentDifferential.data.changeTypes.push('component');
 
           fieldDifferential.changed = true;
           fieldDifferential.data.changed = true;
-          fieldDifferential.data.changeTypes.push("component");
+          fieldDifferential.data.changeTypes.push('component');
 
           if (componentDifferential) {
             componentDifferential.changed = true;
             componentDifferential.data.changed = true;
-            componentDifferential.data.changeTypes.push("component");
+            componentDifferential.data.changeTypes.push('component');
 
-            derivedComponent.type = "subcomponent";
+            derivedComponent.type = 'subcomponent';
           } else {
-            derivedComponent.type = "component";
+            derivedComponent.type = 'component';
           }
           let path = `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`;
           let globalPath = `${segmentDifferential.data.path}.${fieldDifferential.data.position}`;
@@ -1652,78 +1976,78 @@ let CalculationService = {
               added: true,
               name: {
                 src: null,
-                derived: {}
+                derived: {},
               },
               position: derivedComponent.position,
               type: derivedComponent.type,
               path: globalPath,
               usage: {
                 src: null,
-                derived: {}
+                derived: {},
               },
               datatype: { src: null, derived: {} },
-              predicate: { src: null, derived: {} }
-            }
+              predicate: { src: null, derived: {} },
+            },
           };
           diff.data.name.derived[derivedIgId] = {
             value: derivedComponent.name,
-            status: "added"
+            status: 'added',
           };
           diff.data.usage.derived[derivedIgId] = {
             value: derivedComponent.usage,
-            status: "added"
+            status: 'added',
           };
           diff.data.datatype.derived[derivedIgId] = {
             value: derivedComponent.datatype,
-            status: "added"
+            status: 'added',
           };
           diff.data.predicate.derived[derivedIgId] = {
             value: derivedComponent.predicate,
-            status: "added"
+            status: 'added',
           };
           //TODO: Think about binding. It's in the list of parent.
           commonDifferential.children.push(diff);
-          commonDifferential.children.sort(function(a, b) {
+          commonDifferential.children.sort(function (a, b) {
             return a.data.position - b.data.position;
           });
         }
       });
     } else {
       // Components may have been removed. Check for.added field to determine if it was removed from src
-      commonDifferential.children.forEach(differential => {
+      commonDifferential.children.forEach((differential) => {
         let derivedComponent = derivedComponents.find(
-          d => d.position === differential.data.position
+          (d) => d.position === differential.data.position
         );
         if (derivedComponent) {
           if (differential.data.added) {
             // component added
             segmentDifferential.changed = true;
             segmentDifferential.data.changed = true;
-            segmentDifferential.data.changeTypes.push("component");
+            segmentDifferential.data.changeTypes.push('component');
 
             fieldDifferential.changed = true;
             fieldDifferential.data.changed = true;
-            fieldDifferential.data.changeTypes.push("component");
+            fieldDifferential.data.changeTypes.push('component');
 
             commonDifferential.changed = true;
             commonDifferential.data.changed = true;
-            commonDifferential.data.changeTypes.push("component");
+            commonDifferential.data.changeTypes.push('component');
 
             differential.data.name.derived[derivedIgId] = {
               value: derivedComponent.name,
-              status: "added"
+              status: 'added',
             };
             differential.data.usage.derived[derivedIgId] = {
               value: derivedComponent.usage,
-              status: "added"
+              status: 'added',
             };
             differential.data.datatype.derived[derivedIgId] = {
               value: derivedComponent.datatype,
-              status: "added"
+              status: 'added',
             };
             differential.data.predicate.derived[derivedIgId] = {
               value: derivedComponent.predicate,
-              status: "added"
+              status: 'added',
             };
             //TODO: Think about binding. It's in the list of parent.
           } else {
@@ -1749,31 +2073,31 @@ let CalculationService = {
             // component removed
             segmentDifferential.changed = true;
             segmentDifferential.data.changed = true;
-            segmentDifferential.data.changeTypes.push("component");
+            segmentDifferential.data.changeTypes.push('component');
 
             fieldDifferential.changed = true;
             fieldDifferential.data.changed = true;
-            fieldDifferential.data.changeTypes.push("component");
+            fieldDifferential.data.changeTypes.push('component');
 
             commonDifferential.changed = true;
             commonDifferential.data.changed = true;
-            commonDifferential.data.changeTypes.push("component");
+            commonDifferential.data.changeTypes.push('component');
 
             differential.data.name.derived[derivedIgId] = {
               value: differential.data.name.src.value,
-              status: "deleted"
+              status: 'deleted',
             };
             differential.data.usage.derived[derivedIgId] = {
               value: differential.data.usage.src.value,
-              status: "deleted"
+              status: 'deleted',
             };
             differential.data.datatype.derived[derivedIgId] = {
               value: differential.data.datatype.src.value,
-              status: "deleted"
+              status: 'deleted',
             };
             differential.data.predicate.derived[derivedIgId] = {
               value: differential.data.predicate.src.value,
-              status: "deleted"
+              status: 'deleted',
             };
             //TODO: Think about binding. It's in the list of parent.
           }
@@ -1810,24 +2134,24 @@ let CalculationService = {
     if (derivedComponent.name !== differential.data.name.src.value) {
       segmentDifferential.changed = true;
       segmentDifferential.data.changed = true;
-      segmentDifferential.data.changeTypes.push("name");
+      segmentDifferential.data.changeTypes.push('name');
 
       fieldDifferential.changed = true;
       fieldDifferential.data.changed = true;
-      fieldDifferential.data.changeTypes.push("name");
+      fieldDifferential.data.changeTypes.push('name');
 
       differential.changed = true;
       differential.data.changed = true;
-      differential.data.changeTypes.push("name");
+      differential.data.changeTypes.push('name');
 
       if (componentDifferential) {
         componentDifferential.changed = true;
         componentDifferential.data.changed = true;
-        componentDifferential.data.changeTypes.push("name");
+        componentDifferential.data.changeTypes.push('name');
 
-        derivedComponent.type = "subcomponent";
+        derivedComponent.type = 'subcomponent';
       } else {
-        derivedComponent.type = "component";
+        derivedComponent.type = 'component';
       }
 
       let path = `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`;
@@ -1841,7 +2165,7 @@ let CalculationService = {
       path += `.${derivedComponent.position}`;
       globalPath += `.${derivedComponent.position}`;
       differential.data.name.derived[derivedIgId] = {
-        value: derivedComponent.name
+        value: derivedComponent.name,
       };
     }
 
@@ -1853,24 +2177,24 @@ let CalculationService = {
       if (!differential.data.usage.derived[derivedIgId]) {
         segmentDifferential.changed = true;
         segmentDifferential.data.changed = true;
-        segmentDifferential.data.changeTypes.push("usage");
+        segmentDifferential.data.changeTypes.push('usage');
 
         fieldDifferential.changed = true;
         fieldDifferential.data.changed = true;
-        fieldDifferential.data.changeTypes.push("usage");
+        fieldDifferential.data.changeTypes.push('usage');
 
         if (componentDifferential) {
           componentDifferential.changed = true;
           componentDifferential.data.changed = true;
-          componentDifferential.data.changeTypes.push("usage");
+          componentDifferential.data.changeTypes.push('usage');
 
-          derivedComponent.type = "subcomponent";
+          derivedComponent.type = 'subcomponent';
         } else {
-          derivedComponent.type = "component";
+          derivedComponent.type = 'component';
         }
         differential.changed = true;
         differential.data.changed = true;
-        differential.data.changeTypes.push("usage");
+        differential.data.changeTypes.push('usage');
 
         let path = `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`;
         let globalPath = `${segmentDifferential.data.path}.${fieldDifferential.data.position}`;
@@ -1894,26 +2218,26 @@ let CalculationService = {
         );
         differential.data.usage.derived[derivedIgId] = {
           value: derivedComponent.usage,
-          reason: "",
-          compliance
+          reason: '',
+          compliance,
         };
         if (componentDifferential) {
           if (!componentDifferential.data.consequential) {
             componentDifferential.data.consequential = {
               src: false,
-              derived: {}
+              derived: {},
             };
           }
 
           if (
             (componentDifferential.data.usage.derived[derivedIgId] &&
-              (componentDifferential.data.usage.derived[derivedIgId].value ===
-                "R" ||
-                componentDifferential.data.usage.derived[derivedIgId].value ===
-                  "RE")) ||
+              (componentDifferential.data.usage.derived[derivedIgId]
+                .value === 'R' ||
+                componentDifferential.data.usage.derived[derivedIgId]
+                  .value === 'RE')) ||
             (!componentDifferential.data.usage.derived[derivedIgId] &&
-              (componentDifferential.data.usage.src.value === "R" ||
-                componentDifferential.data.usage.src.value === "RE"))
+              (componentDifferential.data.usage.src.value === 'R' ||
+                componentDifferential.data.usage.src.value === 'RE'))
           ) {
             componentDifferential.data.consequential.derived[
               derivedIgId
@@ -1928,24 +2252,28 @@ let CalculationService = {
           if (!fieldDifferential.data.consequential) {
             fieldDifferential.data.consequential = {
               src: false,
-              derived: {}
+              derived: {},
             };
           }
 
           if (
             (fieldDifferential.data.usage.derived[derivedIgId] &&
-              (fieldDifferential.data.usage.derived[derivedIgId].value ===
-                "R" ||
-                fieldDifferential.data.usage.derived[derivedIgId].value ===
-                  "RE")) ||
+              (fieldDifferential.data.usage.derived[derivedIgId]
+                .value === 'R' ||
+                fieldDifferential.data.usage.derived[derivedIgId]
+                  .value === 'RE')) ||
             (!fieldDifferential.data.usage.derived[derivedIgId] &&
-              (fieldDifferential.data.usage.src.value === "R" ||
-                fieldDifferential.data.usage.src.value === "RE"))
+              (fieldDifferential.data.usage.src.value === 'R' ||
+                fieldDifferential.data.usage.src.value === 'RE'))
           ) {
-            fieldDifferential.data.consequential.derived[derivedIgId] = true;
+            fieldDifferential.data.consequential.derived[
+              derivedIgId
+            ] = true;
             fieldDifferential.data.consequential.src = true;
           } else {
-            fieldDifferential.data.consequential.derived[derivedIgId] = false;
+            fieldDifferential.data.consequential.derived[
+              derivedIgId
+            ] = false;
           }
         }
       }
@@ -1953,54 +2281,58 @@ let CalculationService = {
 
     if (
       configuration.predicate &&
-      derivedComponent.predicate != differential.data.predicate.src.value
+      derivedComponent.predicate !=
+        differential.data.predicate.src.value
     ) {
       if (!differential.data.predicate.derived[derivedIgId]) {
         segmentDifferential.changed = true;
         segmentDifferential.data.changed = true;
-        segmentDifferential.data.changeTypes.push("predicate");
+        segmentDifferential.data.changeTypes.push('predicate');
 
         fieldDifferential.changed = true;
         fieldDifferential.data.changed = true;
-        fieldDifferential.data.changeTypes.push("predicate");
+        fieldDifferential.data.changeTypes.push('predicate');
 
         if (componentDifferential) {
           componentDifferential.changed = true;
           componentDifferential.data.changed = true;
-          componentDifferential.data.changeTypes.push("predicate");
+          componentDifferential.data.changeTypes.push('predicate');
 
-          derivedComponent.type = "subcomponent";
+          derivedComponent.type = 'subcomponent';
         } else {
-          derivedComponent.type = "component";
+          derivedComponent.type = 'component';
         }
         differential.changed = true;
         differential.data.changed = true;
-        differential.data.changeTypes.push("predicate");
+        differential.data.changeTypes.push('predicate');
 
         differential.data.predicate.derived[derivedIgId] = {
-          value: derivedComponent.predicate
+          value: derivedComponent.predicate,
         };
       }
     }
     if (configuration.datatype) {
-      if (derivedComponent.datatype != differential.data.datatype.src.value) {
+      if (
+        derivedComponent.datatype !=
+        differential.data.datatype.src.value
+      ) {
         if (!differential.data.datatype.derived[derivedIgId]) {
           segmentDifferential.changed = true;
           segmentDifferential.data.changed = true;
-          segmentDifferential.data.changeTypes.push("datatype");
+          segmentDifferential.data.changeTypes.push('datatype');
 
           fieldDifferential.changed = true;
           fieldDifferential.data.changed = true;
-          fieldDifferential.data.changeTypes.push("datatype");
+          fieldDifferential.data.changeTypes.push('datatype');
 
           if (componentDifferential) {
             componentDifferential.changed = true;
             componentDifferential.data.changed = true;
-            componentDifferential.data.changeTypes.push("datatype");
+            componentDifferential.data.changeTypes.push('datatype');
           }
           differential.changed = true;
           differential.data.changed = true;
-          differential.data.changeTypes.push("datatype");
+          differential.data.changeTypes.push('datatype');
 
           let path = `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`;
           let globalPath = `${segmentDifferential.data.path}.${fieldDifferential.data.position}`;
@@ -2023,19 +2355,60 @@ let CalculationService = {
           );
           differential.data.datatype.derived[derivedIgId] = {
             value: derivedComponent.datatype,
-            reason: "",
-            compliance
+            reason: '',
+            compliance,
           };
+
+          const keyName = `${differential.data.datatype.src.value}#${derivedComponent.datatype}`;
+          if (!originalProfile.summaries.datatypes[keyName]) {
+            originalProfile.summaries.datatypes[keyName] = {};
+          }
+          if (
+            !originalProfile.summaries.datatypes[keyName][derivedIgId]
+          ) {
+            originalProfile.summaries.datatypes[keyName][
+              derivedIgId
+            ] = {
+              number: 0,
+            };
+          }
+
+          originalProfile.summaries.datatypes[keyName][derivedIgId]
+            .number++;
+
+          if (!originalProfile.summaries.datatypes[keyName].changes) {
+            originalProfile.summaries.datatypes[keyName].changes = {};
+          }
+          if (
+            !originalProfile.summaries.datatypes[keyName].changes[
+              `${path}.${differential.data.name.src.value}`
+            ]
+          ) {
+            originalProfile.summaries.datatypes[keyName].changes[
+              `${path}.${differential.data.name.src.value}`
+            ] = {
+              type: differential.data.type,
+              path: `${path}`,
+              name: differential.data.name.src.value,
+              igs: {},
+            };
+          }
+          originalProfile.summaries.datatypes[keyName].changes[
+            `${path}.${differential.data.name.src.value}`
+          ].igs[derivedIgId] = true;
         }
       }
 
-      const srcDt = datatypesMap[srcIgId][differential.data.datatype.src.value];
-      const derivedDt = datatypesMap[derivedIgId][derivedComponent.datatype];
+      const srcDt =
+        datatypesMap[srcIgId][differential.data.datatype.src.value];
+      const derivedDt =
+        datatypesMap[derivedIgId][derivedComponent.datatype];
       if (configuration.conformanceStatement) {
         if (!differential.data.conformanceStatements) {
-          differential.data.conformanceStatements = this.getConformanceStatementsDiff(
-            srcDt.conformanceStatements
-          );
+          differential.data.conformanceStatements =
+            this.getConformanceStatementsDiff(
+              srcDt.conformanceStatements
+            );
         }
 
         this.compareConformanceStatements(
@@ -2051,28 +2424,28 @@ let CalculationService = {
           derivedIgId,
           derivedDt.bindings,
           valuesetsMap,
-          "datatype_component",
+          'datatype_component',
           originalProfile
         );
         if (changed) {
           segmentDifferential.changed = true;
           segmentDifferential.data.changed = true;
-          segmentDifferential.data.changeTypes.push("valueset");
+          segmentDifferential.data.changeTypes.push('valueset');
 
           fieldDifferential.changed = true;
           fieldDifferential.data.changed = true;
-          fieldDifferential.data.changeTypes.push("valueset");
+          fieldDifferential.data.changeTypes.push('valueset');
 
           if (componentDifferential) {
             componentDifferential.changed = true;
             componentDifferential.data.changed = true;
-            componentDifferential.data.changeTypes.push("valueset");
+            componentDifferential.data.changeTypes.push('valueset');
           }
         }
         this.spreadDatatypeBindings(
           differential.children,
           differential.bindings,
-          "datatype_component"
+          'datatype_component'
         );
       }
       if (
@@ -2111,11 +2484,11 @@ let CalculationService = {
         originalProfile.reasons = {};
       }
       const reasonsForChange = reasons[0].Reason;
-      reasonsForChange.forEach(reason => {
-        reason = reason["$"];
-        let splits = reason.Location.split(".");
+      reasonsForChange.forEach((reason) => {
+        reason = reason['$'];
+        let splits = reason.Location.split('.');
         splits.shift();
-        splits = splits.join(".");
+        splits = splits.join('.');
 
         if (!originalProfile.reasons[splits]) {
           originalProfile.reasons[splits] = {};
@@ -2146,17 +2519,22 @@ let CalculationService = {
       );
     }
   },
-  createGroupsDiff(originalId, originalProfile, groups, configuration) {
+  createGroupsDiff(
+    originalId,
+    originalProfile,
+    groups,
+    configuration
+  ) {
     if (groups) {
       if (originalProfile) {
-        groups.forEach(group => {
+        groups.forEach((group) => {
           const length = group.SegmentRef.length;
-          const usage = group.SegmentRef[0]["$"].usage;
-          group["$"].usage = usage;
+          const usage = group.SegmentRef[0]['$'].usage;
+          group['$'].usage = usage;
           group.SegmentRef.splice(length - 1, 1);
           group.SegmentRef.splice(0, 1);
           let originalGroup = originalProfile.children.find(
-            p => p.data.position === group["$"].position
+            (p) => p.data.position === group['$'].position
           );
           // `${segmentDifferential.data.ref}.${derivedField.position}`,
           // fieldDifferential.data,
@@ -2165,7 +2543,7 @@ let CalculationService = {
             originalId,
             originalProfile,
             originalGroup,
-            group["$"],
+            group['$'],
             configuration
           );
           this.createProfileDiff(
@@ -2180,18 +2558,23 @@ let CalculationService = {
       }
     }
   },
-  createSegRefsDiff(originalId, originalProfile, segRefs, configuration) {
+  createSegRefsDiff(
+    originalId,
+    originalProfile,
+    segRefs,
+    configuration
+  ) {
     if (segRefs) {
       if (originalProfile) {
-        segRefs.forEach(segRef => {
+        segRefs.forEach((segRef) => {
           let originalSegRef = originalProfile.children.find(
-            p => p.data.position === segRef["$"].position
+            (p) => p.data.position === segRef['$'].position
           );
           ComparisonService.compare(
             originalId,
             originalProfile,
             originalSegRef,
-            segRef["$"],
+            segRef['$'],
             configuration
           );
           // if(changed){
@@ -2207,7 +2590,7 @@ let CalculationService = {
         // Can't compare
       }
     }
-  }
+  },
 };
 
 module.exports = CalculationService;
