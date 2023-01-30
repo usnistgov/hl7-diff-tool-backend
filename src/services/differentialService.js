@@ -1,4 +1,6 @@
 const fs = require('fs');
+const csv = require('csvtojson');
+
 const xml2js = require('xml2js');
 const parser = new xml2js.Parser({
   // explicitChildren: true,
@@ -7,13 +9,14 @@ const parser = new xml2js.Parser({
 const parserExplicit = new xml2js.Parser({
   explicitChildren: true,
   preserveChildrenOrder: true,
+  // childkey: 'childkey',
 });
 const CalculationService = require('./diff/calculationService');
 const ValidationCalculationService = require('./validation/calculationService');
 
 let DifferentialService = {
-  calculateDifferential: function (req, res) {
-    const { source, ...files } = req.files;
+  calculateDifferential: async function (req, res) {
+    const { source, configurationFile, ...files } = req.files;
     if (!req.body.configuration) {
       return res
         .status(500)
@@ -52,53 +55,74 @@ let DifferentialService = {
       }
     });
 
+    let summariesConfiguration = {
+      fields: [
+        { name: 'Administered Product' },
+        { name: 'User Authentication Credential', location: '3.1' },
+        {
+          name: 'Date/Time of Birth',
+          construct: 'PID',
+          location: '4.1.1.7',
+        },
+      ],
+    };
+    let derivedProfilesPromises = [];
+
+    if (configurationFile) {
+      let customConfig = await csv().fromString(
+        configurationFile.data.toString('utf8')
+      );
+      summariesConfiguration.fields = customConfig;
+    }
     for (const key in files) {
-      if (files.hasOwnProperty(key)) {
-        const file = files[key];
-        const fileXml = file.data.toString('utf8');
+      const index = key.slice(2);
+      const file = files[key];
+      const fileXml = file.data.toString('utf8');
+      derivedProfilesPromises[index] =
+        parser.parseStringPromise(fileXml);
+    }
+    const derivedProfiles = await Promise.all(
+      derivedProfilesPromises
+    );
+    for (const key in files) {
+      const index = key.slice(2);
+      const result = derivedProfiles[index];
+      if (result && result.Document && result.Document.Section) {
+        let derivedIg = {
+          ig: result.Document.Metadata[0]['$'].title,
+          id: result.Document['$'].id + `_${index}`,
+        };
+        for (
+          let index = 0;
+          index < result.Document.Section[0].Section.length;
+          index++
+        ) {
+          const section = result.Document.Section[0].Section[index];
 
-        parser.parseString(fileXml, function (err, result) {
-          console.log(result);
-
-          if (result && result.Document && result.Document.Section) {
-            let derivedIg = {
-              ig: result.Document.Metadata[0]['$'].title,
-              id: result.Document['$'].id,
-            };
-            for (
-              let index = 0;
-              index < result.Document.Section[0].Section.length;
-              index++
-            ) {
-              const section =
-                result.Document.Section[0].Section[index];
-
-              if (
-                section['$'].type === 'CONFORMANCEPROFILEREGISTRY'
-              ) {
-                derivedIg.profiles = section.Section;
-              }
-              if (section['$'].type === 'SEGMENTREGISTRY') {
-                derivedIg.segments = section.Section;
-              }
-              if (section['$'].type === 'DATATYPEREGISTRY') {
-                derivedIg.datatypes = section.Section;
-              }
-              if (section['$'].type === 'VALUESETREGISTRY') {
-                derivedIg.valuesets = section.Section;
-              }
-            }
-            derivedIgs.push(derivedIg);
+          if (section['$'].type === 'CONFORMANCEPROFILEREGISTRY') {
+            derivedIg.profiles = section.Section;
           }
-        });
+          if (section['$'].type === 'SEGMENTREGISTRY') {
+            derivedIg.segments = section.Section;
+          }
+          if (section['$'].type === 'DATATYPEREGISTRY') {
+            derivedIg.datatypes = section.Section;
+          }
+          if (section['$'].type === 'VALUESETREGISTRY') {
+            derivedIg.valuesets = section.Section;
+          }
+        }
+        derivedIgs.push(derivedIg);
       }
     }
-    const result = CalculationService.calculate(
+
+    const results = CalculationService.calculate(
       sourceProfile,
       derivedIgs,
-      configuration
+      configuration,
+      summariesConfiguration
     );
-    return res.status(200).send({ success: true, data: result });
+    return res.status(200).send({ success: true, data: results });
   },
   calculateVerificationDifferential: async function (req, res) {
     const { source, sourceVs, sourceCt, ...files } = req.files;
@@ -526,11 +550,11 @@ let DifferentialService = {
         console.log('Field predicate', path);
       }
     }
-
-    // console.log(predicate)
   },
   populatePosition: function (profile) {
     let position = 1;
+    console.log('-----');
+
     if (profile['$$']) {
       profile['$$'].forEach((element) => {
         if (element['#name'] === 'Segment') {

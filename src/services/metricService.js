@@ -699,98 +699,117 @@ let MetricService = {
     originalProfile.percentage[originalId].binding.total++;
   },
   initializeSummaries(originalProfile) {
-    originalProfile.percentage = {};
-    originalProfile.totalPercentage = {};
-    originalProfile.totalPercentage.binding = {
-      vs: 0,
-      codes: 0,
-      strength: 0,
-      location: 0,
-      total: 0,
-    };
-    originalProfile.totalPercentage.cardinality = {
-      min: {
-        '0x': 0,
-        x0: 0,
-        xx: 0,
+    if (!originalProfile.percentage) {
+      originalProfile.percentage = {};
+    }
+    if (!originalProfile.totalPercentage) {
+      originalProfile.totalPercentage = {};
+      originalProfile.totalPercentage.binding = {
+        vs: 0,
+        codes: 0,
+        strength: 0,
+        location: 0,
         total: 0,
-      },
-      max: {
-        'x*': 0,
-        '*x': 0,
-        xx: 0,
+      };
+      originalProfile.totalPercentage.cardinality = {
+        min: {
+          '0x': 0,
+          x0: 0,
+          xx: 0,
+          total: 0,
+        },
+        max: {
+          'x*': 0,
+          '*x': 0,
+          xx: 0,
+          total: 0,
+        },
+      };
+      originalProfile.totalPercentage.usage = {
+        rc: 0,
+        rre: 0,
+        ro: 0,
+        rx: 0,
+        rec: 0,
+        rer: 0,
+        reo: 0,
+        rex: 0,
+        cr: 0,
+        cre: 0,
+        co: 0,
+        cx: 0,
+        oc: 0,
+        or: 0,
+        ore: 0,
+        ox: 0,
+        xc: 0,
+        xr: 0,
+        xre: 0,
+        xo: 0,
         total: 0,
-      },
-    };
-    originalProfile.totalPercentage.usage = {
-      rc: 0,
-      rre: 0,
-      ro: 0,
-      rx: 0,
-      rec: 0,
-      rer: 0,
-      reo: 0,
-      rex: 0,
-      cr: 0,
-      cre: 0,
-      co: 0,
-      cx: 0,
-      oc: 0,
-      or: 0,
-      ore: 0,
-      ox: 0,
-      xc: 0,
-      xr: 0,
-      xre: 0,
-      xo: 0,
-      total: 0,
-    };
-    originalProfile.compliance = {};
-    originalProfile.totalCompliance = {
-      total: {
-        warning: 0,
-        info: 0,
+      };
+    }
+
+    if (!originalProfile.compliance) {
+      originalProfile.compliance = {};
+    }
+    if (!originalProfile.totalCompliance) {
+      originalProfile.totalCompliance = {
+        total: {
+          warning: 0,
+          info: 0,
+          error: 0,
+        },
+        usage: {
+          warning: 0,
+          info: 0,
+          error: 0,
+        },
+      };
+    }
+
+    if (!originalProfile.usageReport) {
+      originalProfile.usageReport = {
+        stronger: {
+          total: 0,
+          list: [],
+        },
+        weaker: {
+          total: 0,
+          list: [],
+        },
+        relaxed: {
+          total: 0,
+          list: [],
+        },
+        removed: {
+          total: 0,
+          list: [],
+        },
+        allowance: {
+          total: 0,
+          list: [],
+        },
+      };
+    }
+
+    if (!originalProfile.overview) {
+      originalProfile.overview = {
+        usage: 0,
+        card: 0,
         error: 0,
-      },
-      usage: {
-        warning: 0,
-        info: 0,
-        error: 0,
-      },
-    };
-    originalProfile.usageReport = {
-      stronger: {
-        total: 0,
-        list: [],
-      },
-      weaker: {
-        total: 0,
-        list: [],
-      },
-      relaxed: {
-        total: 0,
-        list: [],
-      },
-      removed: {
-        total: 0,
-        list: [],
-      },
-      allowance: {
-        total: 0,
-        list: [],
-      },
-    };
-    originalProfile.overview = {
-      usage: 0,
-      card: 0,
-      error: 0,
-    };
-    originalProfile.summaries = {};
-    originalProfile.summaries.changesTable = {};
-    originalProfile.summaries.complianceErrorTable = {};
-    originalProfile.summaries.overview = {};
-    originalProfile.summaries.totalChangesTable = {};
-    originalProfile.summaries.usageChangesOverview = {};
+      };
+    }
+
+    if (!originalProfile.summaries) {
+      originalProfile.summaries = {};
+      originalProfile.summaries.changesTable = {};
+      originalProfile.summaries.complianceErrorTable = {};
+      originalProfile.summaries.overview = {};
+      originalProfile.summaries.totalChangesTable = {};
+      originalProfile.summaries.usageChangesOverview = {};
+      originalProfile.summaries.dataElements = [];
+    }
   },
 };
 
