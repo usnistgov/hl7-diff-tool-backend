@@ -638,7 +638,9 @@ let CalculationService = {
             status: 'added',
           };
           diff.data.changed = true;
-          diff.data.changeTypes.push('conformanceStatement');
+          if (diff.data.changeTypes) {
+            diff.data.changeTypes.push('conformanceStatement');
+          }
           differential.conformanceStatements.push(diff);
         }
       });
@@ -704,6 +706,7 @@ let CalculationService = {
         value: derivedField.name,
       };
     }
+    derivedField.type = 'field';
 
     //Compare usage
     if (
@@ -718,14 +721,13 @@ let CalculationService = {
         fieldDifferential.changed = true;
         fieldDifferential.data.changed = true;
         fieldDifferential.data.changeTypes.push('usage');
-
         const compliance = MetricService.updateUsageMetrics(
           derivedIgId,
           originalProfile,
           fieldDifferential.data.usage.src.value,
           derivedField.usage,
           `${segmentDifferential.data.ref}.${derivedField.position}`,
-          fieldDifferential.data,
+          derivedField,
           `${segmentDifferential.data.path}.${derivedField.position}`
         );
         fieldDifferential.data.usage.derived[derivedIgId] = {
@@ -815,7 +817,7 @@ let CalculationService = {
             fieldDifferential.data.datatype.src.value,
             derivedField.datatype,
             `${segmentDifferential.data.ref}.${derivedField.position}`,
-            fieldDifferential.data,
+            derivedField,
             `${segmentDifferential.data.path}.${derivedField.position}`
           );
           fieldDifferential.data.datatype.derived[derivedIgId] = {

@@ -58,6 +58,8 @@ let DifferentialService = {
     let summariesConfiguration = {
       fields: [
         { name: 'Administered Product' },
+        { name: 'Patient Name' },
+        { name: 'Family Name' },
         { name: 'User Authentication Credential', location: '3.1' },
         {
           name: 'Date/Time of Birth',
@@ -363,75 +365,80 @@ let DifferentialService = {
     if (profile.constraints) {
       if (profile.constraints.Message) {
         let constraints = profile.constraints.Message[0].ByID;
+        if (constraints) {
+          constraints.forEach((constraint) => {
+            const profileId = constraint['$'].ID;
 
-        constraints.forEach((constraint) => {
-          const profileId = constraint['$'].ID;
-
-          if (profile.id === profileId) {
-            profile.profile.conformanceStatements =
-              constraint.Constraint.map((c) => {
-                return {
-                  id: c['$'].ID,
-                  description: c.Description[0],
-                };
-              });
-          }
-        });
+            if (profile.id === profileId) {
+              profile.profile.conformanceStatements =
+                constraint.Constraint.map((c) => {
+                  return {
+                    id: c['$'].ID,
+                    description: c.Description[0],
+                  };
+                });
+            }
+          });
+        }
       }
       if (profile.constraints.Group) {
         let constraints = profile.constraints.Group[0].ByID;
+        if (constraints) {
+          constraints.forEach((constraint) => {
+            const id = constraint['$'].ID;
 
-        constraints.forEach((constraint) => {
-          const id = constraint['$'].ID;
-
-          if (id.startsWith(profile.id)) {
-            profile.profile.conformanceStatements.push(
-              ...constraint.Constraint.map((c) => {
-                return {
-                  id: c['$'].ID,
-                  description: c.Description[0],
-                };
-              })
-            );
-          }
-        });
+            if (id.startsWith(profile.id)) {
+              profile.profile.conformanceStatements.push(
+                ...constraint.Constraint.map((c) => {
+                  return {
+                    id: c['$'].ID,
+                    description: c.Description[0],
+                  };
+                })
+              );
+            }
+          });
+        }
       }
       if (profile.constraints.Segment) {
         let constraints = profile.constraints.Segment[0].ByID;
-        constraints.forEach((constraint) => {
-          const segmentId = constraint['$'].ID;
-          let segment = profile.segments.find(
-            (seg) => seg['$'].ID === segmentId
-          );
-          if (segment) {
-            segment.conformanceStatements = constraint.Constraint.map(
-              (c) => {
-                return {
-                  id: c['$'].ID,
-                  description: c.Description[0],
-                };
-              }
+        if (constraints) {
+          constraints.forEach((constraint) => {
+            const segmentId = constraint['$'].ID;
+            let segment = profile.segments.find(
+              (seg) => seg['$'].ID === segmentId
             );
-          }
-        });
+            if (segment) {
+              segment.conformanceStatements =
+                constraint.Constraint.map((c) => {
+                  return {
+                    id: c['$'].ID,
+                    description: c.Description[0],
+                  };
+                });
+            }
+          });
+        }
       }
       if (profile.constraints.Datatype) {
         let constraints = profile.constraints.Datatype[0].ByID;
-        constraints.forEach((constraint) => {
-          const datatypeId = constraint['$'].ID;
-          let datatype = profile.datatypes.find(
-            (dt) => dt['$'].ID === datatypeId
-          );
-          if (datatype) {
-            datatype.conformanceStatements =
-              constraint.Constraint.map((c) => {
-                return {
-                  id: c['$'].ID,
-                  description: c.Description[0],
-                };
-              });
-          }
-        });
+        if (constraints) {
+          constraints.forEach((constraint) => {
+            const datatypeId = constraint['$'].ID;
+            let datatype = profile.datatypes.find(
+              (dt) => dt['$'].ID === datatypeId
+            );
+            if (datatype) {
+              datatype.conformanceStatements =
+                constraint.Constraint.map((c) => {
+                  return {
+                    id: c['$'].ID,
+                    description: c.Description[0],
+                  };
+                });
+            }
+          });
+        }
       }
     }
   },
@@ -482,7 +489,11 @@ let DifferentialService = {
         }
       }
       //TODO: add for message
-      if (profile.predicates.Message) {
+      if (
+        profile.predicates.Message &&
+        profile.predicates.Message[0] &&
+        profile.predicates.Message[0].ByID
+      ) {
         let predicates = profile.predicates.Message[0].ByID.find(
           (m) => m['$'].ID === profile.id
         );

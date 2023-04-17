@@ -1094,6 +1094,7 @@ let CalculationService = {
                 src: {},
                 derived: {},
               },
+              changed: true,
             },
           };
           diff.data.description.derived[derivedIgId] = {
@@ -1647,7 +1648,8 @@ let CalculationService = {
               reasons,
               configuration,
               datatypesMap,
-              valuesetsMap
+              valuesetsMap,
+              summariesConfiguration
             );
           }
         } else {
@@ -1720,6 +1722,7 @@ let CalculationService = {
         value: derivedField.name,
       };
     }
+    derivedField.type = 'field';
 
     //Compare usage
     if (configuration.usage) {
@@ -1733,14 +1736,13 @@ let CalculationService = {
           fieldDifferential.changed = true;
           fieldDifferential.data.changed = true;
           fieldDifferential.data.changeTypes.push('usage');
-
           const compliance = MetricService.updateUsageMetrics(
             derivedIgId,
             originalProfile,
             fieldDifferential.data.usage.src.value,
             derivedField.usage,
             `${segmentDifferential.data.ref}.${derivedField.position}`,
-            fieldDifferential.data,
+            derivedField,
             `${segmentDifferential.data.path}.${derivedField.position}`
           );
           fieldDifferential.data.usage.derived[derivedIgId] = {
@@ -1750,6 +1752,7 @@ let CalculationService = {
           };
         }
       }
+
       let selectedField = summariesConfiguration.fields.find((f) => {
         let result = f.name === fieldDifferential.data.name.src.value;
         if (f.construct) {
@@ -1859,7 +1862,7 @@ let CalculationService = {
           fieldDifferential.data.cardinality.src.value,
           card,
           `${segmentDifferential.data.ref}.${derivedField.position}`,
-          fieldDifferential.data,
+          derivedField,
           `${segmentDifferential.data.path}.${derivedField.position}`
         );
         fieldDifferential.data.cardinality.derived[derivedIgId] = {
@@ -1889,7 +1892,7 @@ let CalculationService = {
             fieldDifferential.data.datatype.src.value,
             derivedField.datatype,
             `${segmentDifferential.data.ref}.${derivedField.position}`,
-            fieldDifferential.data,
+            derivedField,
             `${segmentDifferential.data.path}.${derivedField.position}`
           );
           fieldDifferential.data.datatype.derived[derivedIgId] = {
