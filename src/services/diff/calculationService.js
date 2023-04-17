@@ -1227,79 +1227,81 @@ let CalculationService = {
                 );
 
               if (srcVs) {
-                // compare codes
+                // TODO check why valuesetsMap[srcIgId][srcVs.bindingIdentifier] can be null sometimes
+                if (valuesetsMap[srcIgId][srcVs.bindingIdentifier]) {
+                  // compare codes
+                  const comparedCodes = ValuesetService.compareCodes(
+                    valuesetsMap[srcIgId][srcVs.bindingIdentifier][
+                      srcVs.version
+                    ].children,
+                    valuesetsMap[derivedIgId][vs][
+                      derivedBinding.versions[i]
+                    ].children
+                  );
 
-                const comparedCodes = ValuesetService.compareCodes(
-                  valuesetsMap[srcIgId][srcVs.bindingIdentifier][
-                    srcVs.version
-                  ].children,
-                  valuesetsMap[derivedIgId][vs][
-                    derivedBinding.versions[i]
-                  ].children
-                );
-
-                let diff = {
-                  bindingIdentifier: vs,
-                  version: derivedBinding.versions[i],
-                  status: 'unchanged',
-                };
-                if (comparedCodes.changed) {
-                  differential.changed = true;
-                  differential.data.changed = true;
-                  differential.data.changeTypes.push('valueset');
-                  bindingDifferential.changed = true;
-                  bindingDifferential.data.changed = true;
-                  bindingDifferential.data.showCodes = true;
-                  changed = true;
-                  diff.status = 'changed';
-                  diff.codes = comparedCodes.list;
-                  const compliance =
-                    MetricService.updateBindingMetrics(
-                      derivedIgId,
-                      originalProfile,
-                      'codes'
-                    );
-                  if (
-                    !bindingDifferential.data.valuesets.derived[
-                      derivedIgId
-                    ]
-                  ) {
-                    bindingDifferential.data.valuesets.derived[
-                      derivedIgId
-                    ] = {
-                      value: [],
-                      compliance,
-                    };
-                  }
-                  bindingDifferential.data.valuesets.derived[
-                    derivedIgId
-                  ].value.push(diff);
-                } else {
-                  // bindingDifferential.changed = true;
-                  // segmentDifferential.changed = true;
-                  // diff.codes =
-                  //   valuesetsMap[derivedIgId][vs][
-                  //     derivedBinding.versions[i]
-                  //   ].children;
-                  if (
-                    !bindingDifferential.data.valuesets.derived[
-                      derivedIgId
-                    ]
-                  ) {
-                    bindingDifferential.data.valuesets.derived[
-                      derivedIgId
-                    ] = {
-                      value: [],
-                    };
-                  }
-                  if (
-                    bindingDifferential.data.valuesets.derived[
-                      derivedIgId
-                    ]
-                  )
+                  let diff = {
+                    bindingIdentifier: vs,
+                    version: derivedBinding.versions[i],
+                    status: 'unchanged',
+                  };
+                  if (comparedCodes.changed) {
+                    differential.changed = true;
+                    differential.data.changed = true;
+                    differential.data.changeTypes.push('valueset');
+                    bindingDifferential.changed = true;
+                    bindingDifferential.data.changed = true;
+                    bindingDifferential.data.showCodes = true;
+                    changed = true;
+                    diff.status = 'changed';
+                    diff.codes = comparedCodes.list;
+                    const compliance =
+                      MetricService.updateBindingMetrics(
+                        derivedIgId,
+                        originalProfile,
+                        'codes'
+                      );
+                    if (
+                      !bindingDifferential.data.valuesets.derived[
+                        derivedIgId
+                      ]
+                    ) {
+                      bindingDifferential.data.valuesets.derived[
+                        derivedIgId
+                      ] = {
+                        value: [],
+                        compliance,
+                      };
+                    }
                     bindingDifferential.data.valuesets.derived[
                       derivedIgId
                     ].value.push(diff);
+                  } else {
+                    // bindingDifferential.changed = true;
+                    // segmentDifferential.changed = true;
+                    // diff.codes =
+                    //   valuesetsMap[derivedIgId][vs][
+                    //     derivedBinding.versions[i]
+                    //   ].children;
+                    if (
+                      !bindingDifferential.data.valuesets.derived[
+                        derivedIgId
+                      ]
+                    ) {
+                      bindingDifferential.data.valuesets.derived[
+                        derivedIgId
+                      ] = {
+                        value: [],
+                      };
+                    }
+                    if (
+                      bindingDifferential.data.valuesets.derived[
+                        derivedIgId
+                      ]
+                    )
+                      bindingDifferential.data.valuesets.derived[
+                        derivedIgId
+                      ].value.push(diff);
+                  }
                 }
               } else {
                 // New Value set added to binding
