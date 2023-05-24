@@ -1,14 +1,14 @@
 let ValuesetService = {
-  populateValuesetsMap: function(valuesetsMap, igId, valuesets) {
+  populateValuesetsMap: function (valuesetsMap, igId, valuesets) {
     if (valuesets) {
       if (!valuesetsMap[igId]) {
         valuesetsMap[igId] = {};
       }
-      valuesets.forEach(valueset => {
+      valuesets.forEach((valueset) => {
         const vsObject = valueset.Valueset[0];
-        const bindingId = vsObject["$"].bindingIdentifier;
-        let version = vsObject["$"].version;
-        if (version === "") {
+        const bindingId = vsObject['$'].bindingIdentifier;
+        let version = vsObject['$'].version;
+        if (version === '') {
           version = null;
         }
         if (!valuesetsMap[igId][bindingId]) {
@@ -16,58 +16,58 @@ let ValuesetService = {
         }
 
         if (!valuesetsMap[igId][bindingId][version]) {
-          valuesetsMap[igId][bindingId][version] = this.extractValueset(
-            vsObject
-          );
+          valuesetsMap[igId][bindingId][version] =
+            this.extractValueset(vsObject);
         }
       });
     }
   },
-  extractValueset: function(valueset) {
+  extractValueset: function (valueset) {
     let result = {};
     if (valueset) {
       result = {
-        id: valueset["$"].id,
-        title: valueset["$"].title,
-        name: valueset["$"].name,
-        description: valueset["$"].description,
-        bindingIdentifier: valueset["$"].bindingIdentifier,
-        codeSystemIds: valueset["$"].codeSystemIds,
-        contentDefinition: valueset["$"].contentDefinition,
-        extensibility: valueset["$"].extensibility,
-        numberOfCodes: valueset["$"].numberOfCodes,
-        oid: valueset["$"].oid,
-        stability: valueset["$"].stability,
-        version: valueset["$"].version,
-        children: this.extractCodes(valueset.Codes)
+        id: valueset['$'].id,
+        title: valueset['$'].title,
+        name: valueset['$'].name,
+        description: valueset['$'].description,
+        bindingIdentifier: valueset['$'].bindingIdentifier,
+        codeSystemIds: valueset['$'].codeSystemIds,
+        contentDefinition: valueset['$'].contentDefinition,
+        extensibility: valueset['$'].extensibility,
+        numberOfCodes: valueset['$'].numberOfCodes,
+        oid: valueset['$'].oid,
+        stability: valueset['$'].stability,
+        version: valueset['$'].version,
+        children: this.extractCodes(valueset.Codes),
       };
     }
     return result;
   },
-  extractCodes: function(codes) {
+  extractCodes: function (codes) {
     let result = [];
     if (codes && codes[0] && codes[0].Code) {
-      codes[0].Code.forEach(code => {
-        if (code["$"].value !== "...") {
-          result.push(code["$"]);
+      codes[0].Code.forEach((code) => {
+        if (code['$'].value !== '...') {
+          result.push(code['$']);
         }
       });
     }
-    result = result.sort(function(a, b) {
+    result = result.sort(function (a, b) {
       return a.value.localeCompare(b.value);
     });
     return result;
   },
 
-  compareCodes: function(src, derived) {
+  compareCodes: function (src, derived) {
     let codes = {
       changed: false,
-      list: []
+      list: [],
     };
     if (derived) {
-      derived.forEach(code => {
+      derived.forEach((code) => {
         const c = src.find(
-          x => x.codeSystem === code.codeSystem && x.value === code.value
+          (x) =>
+            x.codeSystem === code.codeSystem && x.value === code.value
         );
         if (c) {
           let clonedCode = Object.assign({}, code);
@@ -75,7 +75,7 @@ let ValuesetService = {
             codes.changed = true;
             clonedCode.usage = {
               value: code.usage,
-              status: "changed"
+              status: 'changed',
             };
           }
 
@@ -84,27 +84,28 @@ let ValuesetService = {
           codes.changed = true;
           codes.list.push({
             ...code,
-            status: "added"
+            status: 'added',
           });
         }
       });
-      src.forEach(code => {
+      src.forEach((code) => {
         const c = derived.find(
-          x => x.codeSystem === code.codeSystem && x.value === code.value
-        )
-        if(!c){
+          (x) =>
+            x.codeSystem === code.codeSystem && x.value === code.value
+        );
+        if (!c) {
           //code deleted
           codes.changed = true;
           codes.list.push({
             ...code,
-            status: "deleted"
+            status: 'deleted',
           });
         }
       });
     }
     return codes;
   },
-  populateSrcValuesets: function(
+  populateSrcValuesets: function (
     igId,
     bindings,
     configuration,
@@ -113,7 +114,7 @@ let ValuesetService = {
   ) {
     let results = [];
     if (bindings && configuration.valueset) {
-      bindings.forEach(binding => {
+      bindings.forEach((binding) => {
         let bindingDifferential = {
           data: {
             position: binding.position,
@@ -121,23 +122,23 @@ let ValuesetService = {
             bindingLocation: binding.bindingLocation,
             context: {
               src: {
-                value: context
+                value: context,
               },
-              derived: {}
+              derived: {},
             },
             // locations: binding.locations,
             locations: {
               src: {
-                value: this.extractLocations(binding.locations)
+                value: this.extractLocations(binding.locations),
               },
-              derived: {}
+              derived: {},
             },
             LocationInfoType: binding.LocationInfoType,
             strength: {
               src: {
-                value: binding.strength
+                value: binding.strength,
               },
-              derived: {}
+              derived: {},
             },
             valuesets: {
               src: {
@@ -146,18 +147,18 @@ let ValuesetService = {
                   binding.versions,
                   valuesetsMap,
                   igId
-                )
+                ),
               },
-              derived: {}
+              derived: {},
             },
             codes: this.buildSrcCodes(
               binding.valuesets,
               binding.versions,
               valuesetsMap,
               igId
-            )
+            ),
           },
-          changed: false
+          changed: false,
         };
         results.push(bindingDifferential);
       });
@@ -166,7 +167,7 @@ let ValuesetService = {
     return results;
   },
 
-  buildSrcCodes: function(valuesets, versions, valuesetsMap, igId) {
+  buildSrcCodes: function (valuesets, versions, valuesetsMap, igId) {
     let result = {};
     if (valuesets) {
       valuesets.forEach((valueset, i) => {
@@ -176,9 +177,10 @@ let ValuesetService = {
         ) {
           result[valueset] = {
             src: {
-              value: valuesetsMap[igId][valueset][versions[i]].children
+              value:
+                valuesetsMap[igId][valueset][versions[i]].children,
             },
-            derived: {}
+            derived: {},
           };
         }
       });
@@ -186,13 +188,42 @@ let ValuesetService = {
     return result;
   },
 
-  extractLocations: function(locations) {
+  buildDerivedCodes: function (
+    codes,
+    valuesets,
+    versions,
+    valuesetsMap,
+    igId
+  ) {
+    let result = codes;
+    if (valuesets) {
+      valuesets.forEach((valueset, i) => {
+        if (
+          valuesetsMap[igId][valueset] &&
+          valuesetsMap[igId][valueset][versions[i]]
+        ) {
+          if (!result[valueset]) {
+            result[valueset] = {
+              src: {},
+              derived: {},
+            };
+          }
+
+          result[valueset].derived[igId] =
+            valuesetsMap[igId][valueset][versions[i]].children;
+        }
+      });
+    }
+    return result;
+  },
+
+  extractLocations: function (locations) {
     let locs = [];
     let results = [];
     if (locations) {
-      locs = locations.split(",");
-      locs.forEach(location => {
-        let loc = location.split(".");
+      locs = locations.split(',');
+      locs.forEach((location) => {
+        let loc = location.split('.');
         location = loc[loc.length - 1];
         location = parseInt(location);
         results.push(location);
@@ -200,20 +231,30 @@ let ValuesetService = {
     }
     return results;
   },
-  extractVSWithVersion: function(valuesets, versions, valuesetsMap, igId) {
+  extractVSWithVersion: function (
+    valuesets,
+    versions,
+    valuesetsMap,
+    igId
+  ) {
     let result = [];
     if (valuesets) {
       valuesets.forEach((valueset, i) => {
         result.push({
           bindingIdentifier: valueset,
           version: versions[i],
-          codes: this.getCodes(valueset, versions[i], valuesetsMap, igId)
+          codes: this.getCodes(
+            valueset,
+            versions[i],
+            valuesetsMap,
+            igId
+          ),
         });
       });
     }
     return result;
   },
-  getCodes: function(valueset, version, valuesetsMap, igId) {
+  getCodes: function (valueset, version, valuesetsMap, igId) {
     let result = [];
     if (
       valueset &&
@@ -225,26 +266,26 @@ let ValuesetService = {
 
     return result;
   },
-  extractBindings: function(bindings, currentPath) {
+  extractBindings: function (bindings, currentPath) {
     let result = [];
     if (bindings) {
-      bindings.forEach(binding => {
+      bindings.forEach((binding) => {
         const path =
-          currentPath === ""
-            ? binding["$"].Position1
-            : `${currentPath}.${binding["$"].Position1}`;
+          currentPath === ''
+            ? binding['$'].Position1
+            : `${currentPath}.${binding['$'].Position1}`;
         if (binding.ValuesetBinding && binding.ValuesetBinding[0]) {
-          const details = binding.ValuesetBinding[0]["$"];
+          const details = binding.ValuesetBinding[0]['$'];
 
           const b = {
             strength: details.strength,
             bindingLocation: details.bindingLocation,
             locations: details.locations,
-            position: binding["$"].Position1,
+            position: binding['$'].Position1,
             path,
-            LocationInfoType: binding["$"].LocationInfoType,
+            LocationInfoType: binding['$'].LocationInfoType,
             valuesets: this.extractValuesetsFromName(details.name),
-            versions: this.extractValuesetsFromName(details.version)
+            versions: this.extractValuesetsFromName(details.version),
           };
           result.push(b);
         }
@@ -256,7 +297,8 @@ let ValuesetService = {
           result.push.apply(
             result,
             this.extractBindings(
-              binding.StructureElementBindings[0].StructureElementBinding,
+              binding.StructureElementBindings[0]
+                .StructureElementBinding,
               path
             )
           );
@@ -265,13 +307,13 @@ let ValuesetService = {
     }
     return result;
   },
-  extractValuesetsFromName: function(name) {
+  extractValuesetsFromName: function (name) {
     let valuesets = [];
     if (name) {
-      valuesets = name.split(",");
+      valuesets = name.split(',');
     }
     return valuesets;
-  }
+  },
 };
 
 module.exports = ValuesetService;
