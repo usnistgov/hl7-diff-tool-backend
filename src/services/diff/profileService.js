@@ -242,6 +242,7 @@ let ProfileService = {
           ...SegmentService.populateSrcFields(
             igId,
             segmentsMap[igId][segRef['$'].iDSeg].children,
+            segmentsMap[igId][segRef['$'].iDSeg].slicings,
             configuration,
             path,
             datatypesMap,

@@ -1,57 +1,72 @@
-const DatatypeService = require("./datatypeService");
-const ValuesetService = require("./valuesetService");
-const ComparisonService = require("../comparisonService");
+const DatatypeService = require('./datatypeService');
+const ValuesetService = require('./valuesetService');
+const ComparisonService = require('../comparisonService');
 
 let SegmentService = {
-  populateSegmentsMap: function(segmentsMap, igId, segments) {
+  populateSegmentsMap: function (segmentsMap, igId, segments) {
     if (segments) {
       if (!segmentsMap[igId]) {
         segmentsMap[igId] = {};
       }
-      segments.forEach(segment => {
-        const segId = segment["$"].id;
+      segments.forEach((segment) => {
+        const segId = segment['$'].id;
         if (!segmentsMap[igId][segId]) {
-          segmentsMap[igId][segId] = this.extractSegment(segment.Segment[0]);
+          segmentsMap[igId][segId] = this.extractSegment(
+            segment.Segment[0]
+          );
         }
       });
     }
   },
-  extractSegment: function(segment) {
+  extractSegment: function (segment) {
     let result = {};
     if (segment) {
       result = {
-        id: segment["$"].id,
-        title: segment["$"].title,
-        name: segment["$"].name,
-        description: segment["$"].description,
-        label: segment["$"].label,
-        children: this.extractFields(segment.Fields[0].Field)
+        id: segment['$'].id,
+        title: segment['$'].title,
+        name: segment['$'].name,
+        description: segment['$'].description,
+        label: segment['$'].label,
+        children: this.extractFields(
+          segment.Fields[0].Field,
+          segment.Slicings
+        ),
       };
-      if (segment.Constraints && segment.Constraints[0] && segment.Constraints[0].ConformanceStatement) {
+
+      if (
+        segment.Constraints &&
+        segment.Constraints[0] &&
+        segment.Constraints[0].ConformanceStatement
+      ) {
         let conformanceStatements = [];
         segment.Constraints[0].ConformanceStatement.forEach(
-          conformanceStatement => {
+          (conformanceStatement) => {
             let diff = {
-              id: conformanceStatement["$"].identifier,
-              description: conformanceStatement["$"].description
+              id: conformanceStatement['$'].identifier,
+              description: conformanceStatement['$'].description,
             };
             conformanceStatements.push(diff);
           }
         );
         result.conformanceStatements = conformanceStatements;
       }
-      if (segment.Reasons && segment.Reasons[0] && segment.Reasons[0].Reason) {
+      if (
+        segment.Reasons &&
+        segment.Reasons[0] &&
+        segment.Reasons[0].Reason
+      ) {
         let reasonsMap = {};
         const reasonsForChange = segment.Reasons[0].Reason;
-        reasonsForChange.forEach(reason => {
-          reason = reason["$"];
-          let splits = reason.Location.split(".");
+        reasonsForChange.forEach((reason) => {
+          reason = reason['$'];
+          let splits = reason.Location.split('.');
           splits.shift();
-          splits = splits.join(".");
+          splits = splits.join('.');
           if (!reasonsMap[splits]) {
             reasonsMap[splits] = {};
           }
-          reasonsMap[splits][reason.Property.toLowerCase()] = reason.Text;
+          reasonsMap[splits][reason.Property.toLowerCase()] =
+            reason.Text;
         });
         result.fieldReasons = reasonsMap;
       }
@@ -59,138 +74,225 @@ let SegmentService = {
         segment.Binding &&
         segment.Binding[0].StructureElementBindings &&
         segment.Binding[0].StructureElementBindings[0] &&
-        segment.Binding[0].StructureElementBindings[0].StructureElementBinding
+        segment.Binding[0].StructureElementBindings[0]
+          .StructureElementBinding
       ) {
         result.bindings = ValuesetService.extractBindings(
           segment.Binding[0].StructureElementBindings[0]
             .StructureElementBinding,
-          ""
+          ''
         );
       }
+
+      // if (
+      //   segment.Slicings &&
+      //   segment.Slicings[0] &&
+      //   segment.Slicings[0].Slicing
+      // ) {
+      //   result.slicings = this.extractSlicings(
+      //     segment.Slicings[0].Slicing
+      //   );
+      // }
     }
     return result;
   },
-  extractFields: function(fields) {
+  extractSlicings: function (slicings) {
     let result = [];
-    if (fields) {
-      fields.forEach(field => {
-        result.push(field["$"]);
+    if (slicings) {
+      slicings.forEach((slicing) => {
+        result.push({
+          type: slicing['$'].type,
+          path: slicing['$'].path,
+          name: slicing['$'].name,
+          element: slicing['$'].element,
+          slice: slicing.Slice.map((s) => {
+            return {
+              assertion: s['$'].assertion,
+              occurence: s['$'].occurence,
+              flavor: s['$'].flavor,
+              comment: s['$'].comment,
+            };
+          }),
+        });
       });
     }
     return result;
   },
-  populateConformanceStatements: function( conformanceStatements) {
+  extractFields: function (fields, slicings) {
+    let result = [];
+    if (fields) {
+      fields.forEach((field) => {
+        let r = field['$'];
+        if (slicings && slicings[0] && slicings[0].Slicing) {
+          let structuredSlicings = this.extractSlicings(
+            slicings[0].Slicing
+          );
+          let slicing = structuredSlicings.find(
+            (s) => s.path === field['$'].position
+          );
+          r.slicing = slicing;
+        }
+        result.push(r);
+      });
+    }
+    return result;
+  },
+  populateConformanceStatements: function (conformanceStatements) {
     let results = [];
     if (conformanceStatements) {
-      conformanceStatements.forEach(conformanceStatement => {
+      conformanceStatements.forEach((conformanceStatement) => {
         let diff = {
           data: {
             id: conformanceStatement.id,
             description: {
               src: { value: conformanceStatement.description },
-              derived: {}
-            }
-          }
-      
+              derived: {},
+            },
+          },
         };
         results.push(diff);
       });
     }
     return results;
   },
-  populateSrcFields: function(
+  populateSrcFields: function (
     igId,
     fields,
+    slicings,
     configuration,
     path,
     datatypesMap,
     valuesetsMap
   ) {
     let results = [];
-    fields.forEach(field => {
+    fields.forEach((field) => {
       let currentPath = path;
       currentPath += `.${field.position}`;
       let fieldDifferential = {
         data: {
           name: {
             src: {
-              value: field.name
+              value: field.name,
             },
-            derived: {}
+            derived: {},
           },
           position: field.position,
-          type: "field",
+          type: 'field',
           path: currentPath,
-          changeTypes: []
-
+          changeTypes: [],
         },
-        changed: false
+        changed: false,
       };
 
       if (configuration.usage) {
         fieldDifferential.data.usage = {
           src: {
-            value: field.usage
+            value: field.usage,
           },
-          derived: {}
+          derived: {},
         };
       }
       if (configuration.predicate) {
         fieldDifferential.data.predicate = {
           src: {
-            value: field.predicate
+            value: field.predicate,
           },
-          derived: {}
+          derived: {},
         };
       }
       if (configuration.cardinality) {
-        const card = ComparisonService.createCard(field.min, field.max);
+        const card = ComparisonService.createCard(
+          field.min,
+          field.max
+        );
 
         fieldDifferential.data.cardinality = {
           src: {
-            value: card
+            value: card,
           },
-          derived: {}
+          derived: {},
         };
       }
       if (configuration.datatype) {
         fieldDifferential.data.datatype = {
           src: {
-            value: field.datatype
+            value: field.datatype,
           },
-          derived: {}
+          derived: {},
         };
+        if (field.slicing) {
+          fieldDifferential.data.slicing = {
+            type: field.slicing.type,
+            path: field.slicing.path,
+            name: field.slicing.name,
+            element: field.slicing.element,
+            slice: field.slicing.slice.map((s) => {
+              return {
+                data: {
+                  assertion: {
+                    src: {
+                      value: s.assertion,
+                    },
+                    derived: {},
+                  },
+                  occurence: {
+                    src: {
+                      value: s.occurence,
+                    },
+                    derived: {},
+                  },
+                  flavor: {
+                    src: {
+                      value: s.flavor,
+                    },
+                    derived: {},
+                  },
+                  comment: {
+                    src: {
+                      value: s.comment,
+                    },
+                    derived: {},
+                  },
+                },
+                changed: false,
+              };
+            }),
+            changed: false,
+          };
+        }
       }
 
       if (
         datatypesMap[igId][field.datatype].children &&
         datatypesMap[igId][field.datatype].children.length > 0
       ) {
-        fieldDifferential.children = DatatypeService.populateSrcDatatypes(
-          igId,
-          datatypesMap[igId][field.datatype].children,
-          configuration,
-          currentPath,
-          datatypesMap,
-          1,
-          valuesetsMap
-        );
+        fieldDifferential.children =
+          DatatypeService.populateSrcDatatypes(
+            igId,
+            datatypesMap[igId][field.datatype].children,
+            configuration,
+            currentPath,
+            datatypesMap,
+            1,
+            valuesetsMap
+          );
       }
 
       if (configuration.valueset) {
-        fieldDifferential.bindings = ValuesetService.populateSrcValuesets(
-          igId,
-          datatypesMap[igId][field.datatype].bindings,
-          configuration,
-          valuesetsMap,
-          "datatype_field"
-        );
+        fieldDifferential.bindings =
+          ValuesetService.populateSrcValuesets(
+            igId,
+            datatypesMap[igId][field.datatype].bindings,
+            configuration,
+            valuesetsMap,
+            'datatype_field'
+          );
       }
 
       results.push(fieldDifferential);
     });
     return results;
-  }
+  },
 };
 
 module.exports = SegmentService;

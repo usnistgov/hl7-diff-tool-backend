@@ -23,5 +23,6 @@ module.exports = {
     conformanceStatement: 'Conformance statement',
     coConstraint: 'Co-constraint',
     name: 'Name',
+    slicing: 'Slicing',
   },
 };
