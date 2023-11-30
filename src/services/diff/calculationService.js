@@ -1967,13 +1967,6 @@ let CalculationService = {
 
     // TODO: check if configuration.conformanceStatement and configuration.valueset need to be outside if (configuration.datatype)
     if (configuration.datatype) {
-      // if (derivedField.name === 'Patient Name') {
-      //   console.log(
-      //     fieldDifferential.data.slicing,
-      //     derivedField.slicing
-      //   );
-      // }
-
       if (fieldDifferential.data.slicing && derivedField.slicing) {
         // compare if slicing changed
 
@@ -2074,7 +2067,6 @@ let CalculationService = {
               }
             } else if (derivedField.slicing.type === 'ASSERTION') {
               // ASSERTION slicing
-              // OCCURRENCE slicing
               let existingSlice =
                 fieldDifferential.data.slicing.slice.find(
                   (s) =>
@@ -2162,13 +2154,108 @@ let CalculationService = {
               }
             }
           });
+
+          // check for deleted slices
+          fieldDifferential.data.slicing.slice.forEach((slice) => {
+            if (
+              fieldDifferential.data.slicing.type === 'OCCURRENCE'
+            ) {
+              let existingSlice = derivedField.slicing.slice.find(
+                (s) => slice.data.occurence.src.value === s.occurence
+              );
+              if (slice.data.occurence.src.value && !existingSlice) {
+                // slice deleted
+                slice.changed = true;
+                slice.data.comment.derived[derivedIgId] = {
+                  value: slice.data.comment.src.value,
+                  status: 'deleted',
+                };
+                slice.data.flavor.derived[derivedIgId] = {
+                  value: slice.data.flavor.src.value,
+                  status: 'deleted',
+                };
+                slice.data.occurence.derived[derivedIgId] = {
+                  value: slice.data.occurence.src.value,
+                  status: 'deleted',
+                };
+                segmentDifferential.changed = true;
+                segmentDifferential.data.changed = true;
+                segmentDifferential.data.changeTypes.push('slicing');
+                fieldDifferential.changed = true;
+                fieldDifferential.data.changed = true;
+                fieldDifferential.data.changeTypes.push('slicing');
+                fieldDifferential.data.slicing.changed = true;
+              }
+            } else if (
+              fieldDifferential.data.slicing.type === 'ASSERTION'
+            ) {
+              let existingSlice = derivedField.slicing.slice.find(
+                (s) => slice.data.assertion.src.value === s.assertion
+              );
+              if (slice.data.assertion.src.value && !existingSlice) {
+                // slice deleted
+                slice.changed = true;
+                slice.data.comment.derived[derivedIgId] = {
+                  value: slice.data.comment.src.value,
+                  status: 'deleted',
+                };
+                slice.data.flavor.derived[derivedIgId] = {
+                  value: slice.data.flavor.src.value,
+                  status: 'deleted',
+                };
+                slice.data.assertion.derived[derivedIgId] = {
+                  value: slice.data.assertion.src.value,
+                  status: 'deleted',
+                };
+                segmentDifferential.changed = true;
+                segmentDifferential.data.changed = true;
+                segmentDifferential.data.changeTypes.push('slicing');
+                fieldDifferential.changed = true;
+                fieldDifferential.data.changed = true;
+                fieldDifferential.data.changeTypes.push('slicing');
+                fieldDifferential.data.slicing.changed = true;
+              }
+            }
+          });
         }
       } else if (fieldDifferential.data.slicing) {
         // removed slicing
-        console.log(2);
+        fieldDifferential.data.slicing.slice.forEach((slice) => {
+          slice.changed = true;
+          slice.data.comment.derived[derivedIgId] = {
+            value: slice.data.comment.src.value,
+            status: 'deleted',
+          };
+
+          slice.data.flavor.derived[derivedIgId] = {
+            value: slice.data.flavor.src.value,
+            status: 'deleted',
+          };
+
+          if (fieldDifferential.data.slicing.type === 'OCCURRENCE') {
+            slice.data.occurence.derived[derivedIgId] = {
+              value: slice.data.occurence.src.value,
+              status: 'deleted',
+            };
+          } else if (
+            fieldDifferential.data.slicing.type === 'ASSERTION'
+          ) {
+            slice.data.assertion.derived[derivedIgId] = {
+              value: slice.data.assertion.src.value,
+              status: 'deleted',
+            };
+          }
+        });
+
+        segmentDifferential.changed = true;
+        segmentDifferential.data.changed = true;
+        segmentDifferential.data.changeTypes.push('slicing');
+        fieldDifferential.changed = true;
+        fieldDifferential.data.changed = true;
+        fieldDifferential.data.changeTypes.push('slicing');
+        fieldDifferential.data.slicing.changed = true;
       } else if (derivedField.slicing) {
         // added slicing
-        console.log(3);
         let diff = {
           type: derivedField.slicing.type,
           path: derivedField.slicing.path,
