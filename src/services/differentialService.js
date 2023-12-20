@@ -13,6 +13,7 @@ const parserExplicit = new xml2js.Parser({
 });
 const CalculationService = require('./diff/calculationService');
 const ValidationCalculationService = require('./validation/calculationService');
+const { Readable } = require('stream');
 
 let DifferentialService = {
   calculateDifferential: async function (req, res) {
@@ -124,7 +125,27 @@ let DifferentialService = {
       configuration,
       summariesConfiguration
     );
+
     return res.status(200).send({ success: true, data: results });
+  },
+  streamJSONObject(jsonObject) {
+    const stream = new Readable({
+      read() {},
+    });
+
+    const jsonString = JSON.stringify(jsonObject);
+
+    // Split the JSON string into chunks
+    const size = 1024; // size of each chunk in bytes
+    for (let i = 0; i < jsonString.length; i += size) {
+      const chunk = jsonString.slice(i, i + size);
+      stream.push(chunk);
+    }
+
+    // Push null to signal the end of the stream
+    stream.push(null);
+
+    return stream;
   },
   calculateVerificationDifferential: async function (req, res) {
     const { source, sourceVs, sourceCt, ...files } = req.files;

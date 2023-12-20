@@ -58,13 +58,49 @@ let ValuesetService = {
     return result;
   },
 
-  compareCodes: function (src, derived) {
+  compareCodes: function (
+    src,
+    derived,
+    originalProfile,
+    derivedIgId,
+    vs,
+    version
+  ) {
     let codes = {
       changed: false,
       list: [],
     };
     if (derived) {
       derived.forEach((code) => {
+        if (code.usage === 'P') {
+          if (
+            originalProfile &&
+            originalProfile.summaries &&
+            originalProfile.summaries.VSWithPUsage
+          ) {
+            if (
+              !originalProfile.summaries.VSWithPUsage[vs + version]
+            ) {
+              originalProfile.summaries.VSWithPUsage[vs + version] = {
+                vs: vs,
+                version: version,
+              };
+            }
+            if (
+              !originalProfile.summaries.VSWithPUsage[vs + version][
+                derivedIgId
+              ]
+            ) {
+              originalProfile.summaries.VSWithPUsage[vs + version][
+                derivedIgId
+              ] = 0;
+            }
+
+            originalProfile.summaries.VSWithPUsage[vs + version][
+              derivedIgId
+            ]++;
+          }
+        }
         const c = src.find(
           (x) =>
             x.codeSystem === code.codeSystem && x.value === code.value

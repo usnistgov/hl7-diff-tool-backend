@@ -33,6 +33,38 @@ let MetricService = {
         originalProfile.summaries.usageChangesOverview[path].src =
           srcValue;
       }
+      // Summeries for elements that are still Optional
+      if (derivedValue === 'O') {
+        if (!originalProfile.summaries.elementsWithOUsage[path]) {
+          originalProfile.summaries.elementsWithOUsage[path] = {
+            type: element.type,
+            name: element.name,
+            globalPath,
+            path,
+          };
+        }
+        if (
+          !originalProfile.summaries.elementsWithOUsage[path][
+            originalId
+          ]
+        ) {
+          originalProfile.summaries.elementsWithOUsage[path][
+            originalId
+          ] = derivedValue;
+        }
+        if (!originalProfile.summaries.elementsWithOUsage[path].src) {
+          originalProfile.summaries.elementsWithOUsage[path].src =
+            srcValue;
+        }
+
+        if (!originalProfile.summaries.overview[originalId]) {
+          originalProfile.summaries.overview[originalId] = {};
+        }
+        if (!originalProfile.summaries.overview[originalId].oUsage) {
+          originalProfile.summaries.overview[originalId].oUsage = 0;
+        }
+        originalProfile.summaries.overview[originalId].oUsage++;
+      }
     }
   },
   updateChangesTable(
@@ -808,7 +840,9 @@ let MetricService = {
       originalProfile.summaries.overview = {};
       originalProfile.summaries.totalChangesTable = {};
       originalProfile.summaries.usageChangesOverview = {};
+      originalProfile.summaries.elementsWithOUsage = {};
       originalProfile.summaries.dataElements = [];
+      originalProfile.summaries.VSWithPUsage = {};
     }
   },
 };

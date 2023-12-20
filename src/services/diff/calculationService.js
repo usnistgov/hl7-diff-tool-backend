@@ -1280,7 +1280,11 @@ let CalculationService = {
                         ][srcVs.version].children,
                         valuesetsMap[derivedIgId][vs][
                           derivedBinding.versions[i]
-                        ].children
+                        ].children,
+                        originalProfile,
+                        derivedIgId,
+                        vs,
+                        derivedBinding.versions[i]
                       );
 
                     let diff = {

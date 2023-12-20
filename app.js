@@ -7,10 +7,17 @@ let cors = require('cors');
 let helmet = require('helmet');
 let Utils = require('./src/services/utils');
 const fileUpload = require('express-fileupload');
+const compression = require('compression');
+const { parse, stringify, toJSON, fromJSON } = require('flatted');
+const zlib = require('zlib');
+const pako = require('pako');
 
 let differentialRoutes = require('./config/routes/differential');
 
 let app = express();
+
+// app.use(customJsonMiddleware);
+app.use(compression());
 
 app.use(fileUpload());
 
@@ -77,3 +84,80 @@ let server = app.listen(app.get('port'), function () {
     process.env.ENV
   );
 });
+
+function customJsonMiddleware(req, res, next) {
+  console.log('-------');
+  const originalJson = res.json;
+
+  res.json = function (data) {
+    // Use a Readable stream to stream the JSON data
+    const Readable = require('stream').Readable;
+    const dataStream = new Readable({
+      read() {},
+    });
+    try {
+      // Convert data to JSON in chunks
+      const jsonString = stringify(data);
+      const compressedData = pako.deflate(jsonString);
+
+      // const contentLength = compressedData.length;
+      const contentLength = jsonString.length;
+
+      console.log('--0', contentLength);
+      let position = 0;
+      const chunkSize = 10024; // Adjust chunk size as needed
+      let size = 0;
+
+      // Function to push data to the stream in chunks
+      const pushData = () => {
+        if (position < jsonString.length) {
+          const chunk = jsonString.slice(
+            position,
+            position + chunkSize
+          );
+          // const compressedChunk = pako.deflate(chunk);
+
+          // dataStream.push(compressedChunk);
+          dataStream.push(chunk);
+
+          position += chunkSize;
+          if (position < jsonString.length) {
+            process.nextTick(pushData);
+          }
+        } else {
+          console.log('PSITION:', position);
+          dataStream.push(null);
+        }
+      };
+
+      // Set Content-Length header
+      res.setHeader('Content-Length', contentLength);
+      // Start pushing data
+      pushData();
+
+      // Handle backpressure
+      dataStream.on('drain', pushData);
+
+      // Handle stream completion
+      dataStream.on('end', () => {
+        console.log('Stream completed');
+      });
+    } catch (error) {
+      // Handle JSON serialization errors
+      console.error(error);
+      res.status(500).send('Internal server error');
+      return;
+    }
+
+    // Pipe the stream to the response
+    dataStream.pipe(res);
+  };
+
+  next();
+}
+
+function customReplacerFunction(key, value) {
+  // Your custom serialization logic
+  // Return the value to be serialized
+  return value;
+}
