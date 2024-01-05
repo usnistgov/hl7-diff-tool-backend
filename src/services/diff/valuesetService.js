@@ -93,12 +93,24 @@ let ValuesetService = {
             ) {
               originalProfile.summaries.VSWithPUsage[vs + version][
                 derivedIgId
-              ] = 0;
+              ] = [];
             }
 
-            originalProfile.summaries.VSWithPUsage[vs + version][
-              derivedIgId
-            ]++;
+            const pCode = originalProfile.summaries.VSWithPUsage[
+              vs + version
+            ][derivedIgId].find(
+              (c) =>
+                c.codeSystem === code.codeSystem &&
+                c.value === code.value
+            );
+            if (!pCode) {
+              originalProfile.summaries.VSWithPUsage[vs + version][
+                derivedIgId
+              ].push({
+                value: code.value,
+                codeSystem: code.codeSystem,
+              });
+            }
           }
         }
         const c = src.find(

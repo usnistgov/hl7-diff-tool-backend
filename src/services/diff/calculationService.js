@@ -1816,6 +1816,15 @@ let CalculationService = {
 
     //Compare usage
     if (configuration.usage) {
+      MetricService.updateOUsageElementsOverview(
+        derivedIgId,
+        originalProfile,
+        `${segmentDifferential.data.ref}.${derivedField.position}`,
+        derivedField,
+        `${segmentDifferential.data.path}.${derivedField.position}`,
+        fieldDifferential.data.usage.src.value,
+        derivedField.usage
+      );
       if (
         derivedField.usage != fieldDifferential.data.usage.src.value
       ) {

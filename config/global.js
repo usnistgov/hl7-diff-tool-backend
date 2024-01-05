@@ -22,7 +22,7 @@ module.exports = {
     predicate: 'Predicate',
     conformanceStatement: 'Conformance statement',
     coConstraint: 'Co-constraint',
-    name: 'Name',
+    name: 'Field name',
     slicing: 'Slicing',
   },
 };
