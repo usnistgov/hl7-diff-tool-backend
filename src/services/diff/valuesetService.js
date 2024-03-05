@@ -70,6 +70,7 @@ let ValuesetService = {
       changed: false,
       list: [],
     };
+
     if (derived) {
       derived.forEach((code) => {
         if (code.usage === 'P') {

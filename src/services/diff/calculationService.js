@@ -180,6 +180,7 @@ let CalculationService = {
           segmentRef.changed
         );
         this.spreadBindings(segmentRef.children, segmentRef.bindings);
+        segmentRef.bindings = null;
         child.children = segmentRef.children;
         child.bindings = segmentRef.bindings;
         child.data.conformanceStatements =
@@ -193,6 +194,17 @@ let CalculationService = {
         child.data.changeTypes = segmentRef.data.changeTypes;
       });
       this.spreadProfileBindings(profile.children, profile.bindings);
+      profile.bindings = null;
+      // profile.bindings = [];
+      // profile.children.forEach(segOrGrp => {
+      //   segOrGrp.bindings = []
+      //   if(segOrGrp.children){
+      //     segOrGrp.children.forEach(element => {
+
+      //     });
+      //   }
+
+      // });
     });
 
     return results;
@@ -500,82 +512,88 @@ let CalculationService = {
     return { value: newValuesets };
   },
   spreadDatatypeBindings(components, bindings, context) {
-    bindings.forEach((binding) => {
-      if (binding.data.LocationInfoType === 'COMPONENT') {
-        if (components) {
-          let component = components.find(
-            (f) => f.data.position === binding.data.position
-          );
-          if (component) {
-            if (context === 'datatype_component') {
-              if (!component.data.bindings) {
-                component.data.bindings = [];
-              }
-              if (component.data.bindings.length === 0) {
-                component.data.bindings.push(binding);
-              } else {
-                if (
-                  !component.data.bindings[0].data.locations.src.value
-                ) {
-                  component.data.bindings[0].data.locations.src.value =
-                    binding.data.locations.src.value;
-                }
-                if (
-                  !component.data.bindings[0].data.strength.src.value
-                ) {
-                  component.data.bindings[0].data.strength.src.value =
-                    binding.data.strength.src.value;
-                }
-                if (
-                  !component.data.bindings[0].data.valuesets.src.value
-                ) {
-                  component.data.bindings[0].data.valuesets.src.value =
-                    binding.data.valuesets.src.value;
-                }
-                if (
-                  binding.data.codes.src &&
-                  binding.data.codes.src.value &&
-                  (!component.data.bindings[0].data.codes ||
-                    !component.data.bindings[0].data.codes.src.value)
-                ) {
-                  component.data.bindings[0].data.codes.src.value =
-                    binding.data.codes.src.value;
-                }
-              }
-            }
-            if (context === 'datatype_field') {
-              component.data.bindings = this.overrideBinding(
-                component.data.bindings,
-                binding,
-                context
-              );
-            }
-          }
-        }
-      }
-      if (binding.data.LocationInfoType === 'SUBCOMPONENT') {
-        const paths = binding.data.path.split('.');
-        if (paths.length === 2) {
-          let component = components.find(
-            (f) => f.data.position === paths[0]
-          );
-          if (component && component.children) {
-            const subcomponent = component.children.find(
-              (c) => c.data.position === paths[1]
+    if (bindings) {
+      bindings.forEach((binding) => {
+        if (binding.data.LocationInfoType === 'COMPONENT') {
+          if (components) {
+            let component = components.find(
+              (f) => f.data.position === binding.data.position
             );
-            if (subcomponent) {
-              subcomponent.data.bindings = this.overrideBinding(
-                subcomponent.data.bindings,
-                binding,
-                context
-              );
+            if (component) {
+              if (context === 'datatype_component') {
+                if (!component.data.bindings) {
+                  component.data.bindings = [];
+                }
+                if (component.data.bindings.length === 0) {
+                  component.data.bindings.push(binding);
+                } else {
+                  if (
+                    !component.data.bindings[0].data.locations.src
+                      .value
+                  ) {
+                    component.data.bindings[0].data.locations.src.value =
+                      binding.data.locations.src.value;
+                  }
+                  if (
+                    !component.data.bindings[0].data.strength.src
+                      .value
+                  ) {
+                    component.data.bindings[0].data.strength.src.value =
+                      binding.data.strength.src.value;
+                  }
+                  if (
+                    !component.data.bindings[0].data.valuesets.src
+                      .value
+                  ) {
+                    component.data.bindings[0].data.valuesets.src.value =
+                      binding.data.valuesets.src.value;
+                  }
+                  if (
+                    binding.data.codes.src &&
+                    binding.data.codes.src.value &&
+                    (!component.data.bindings[0].data.codes ||
+                      !component.data.bindings[0].data.codes.src
+                        .value)
+                  ) {
+                    component.data.bindings[0].data.codes.src.value =
+                      binding.data.codes.src.value;
+                  }
+                }
+              }
+              if (context === 'datatype_field') {
+                component.data.bindings = this.overrideBinding(
+                  component.data.bindings,
+                  binding,
+                  context
+                );
+              }
             }
           }
-        } else {
-          console.error('ERROR');
         }
-      }
-    });
+        if (binding.data.LocationInfoType === 'SUBCOMPONENT') {
+          const paths = binding.data.path.split('.');
+          if (paths.length === 2) {
+            let component = components.find(
+              (f) => f.data.position === paths[0]
+            );
+            if (component && component.children) {
+              const subcomponent = component.children.find(
+                (c) => c.data.position === paths[1]
+              );
+              if (subcomponent) {
+                subcomponent.data.bindings = this.overrideBinding(
+                  subcomponent.data.bindings,
+                  binding,
+                  context
+                );
+              }
+            }
+          } else {
+            console.error('ERROR');
+          }
+        }
+      });
+    }
   },
   getDataByPath(data, path, changed) {
     const paths = path.split('.');
@@ -1145,39 +1163,44 @@ let CalculationService = {
 
     if (derivedBindings) {
       derivedBindings.forEach((derivedBinding) => {
-        let bindingDifferential = differential.bindings.find(
-          (b) => b.data && b.data.path === derivedBinding.path
-        );
+        if (differential.bindings) {
+          let bindingDifferential = differential.bindings.find(
+            (b) => b.data && b.data.path === derivedBinding.path
+          );
 
-        if (bindingDifferential) {
-          if (bindingDifferential.data.status === 'added') {
-            // The src profile had no binding and one of the profiles has an added binding, which means that also the current profile has an added binding
-            bindingDifferential.data.codes =
-              ValuesetService.buildDerivedCodes(
-                bindingDifferential.data.codes,
-                derivedBinding.valuesets,
-                derivedBinding.versions,
-                valuesetsMap,
+          if (bindingDifferential) {
+            if (bindingDifferential.data.status === 'added') {
+              // The src profile had no binding and one of the profiles has an added binding, which means that also the current profile has an added binding
+              bindingDifferential.data.codes =
+                ValuesetService.buildDerivedCodes(
+                  bindingDifferential.data.codes,
+                  derivedBinding.valuesets,
+                  derivedBinding.versions,
+                  valuesetsMap,
+                  derivedIgId
+                );
+              bindingDifferential.data.igs[derivedIgId] = {
+                showCodes: true,
+                status: 'added',
+              };
+              bindingDifferential.data.context.derived[derivedIgId] =
+                {
+                  value: context,
+                };
+              bindingDifferential.data.strength.derived[derivedIgId] =
+                {
+                  value: derivedBinding.strength,
+                };
+              bindingDifferential.data.locations.derived[
                 derivedIgId
-              );
-            bindingDifferential.data.igs[derivedIgId] = {
-              showCodes: true,
-              status: 'added',
-            };
-            bindingDifferential.data.context.derived[derivedIgId] = {
-              value: context,
-            };
-            bindingDifferential.data.strength.derived[derivedIgId] = {
-              value: derivedBinding.strength,
-            };
-            bindingDifferential.data.locations.derived[derivedIgId] =
-              {
+              ] = {
                 value: ValuesetService.extractLocations(
                   derivedBinding.locations
                 ),
               };
-            bindingDifferential.data.valuesets.derived[derivedIgId] =
-              {
+              bindingDifferential.data.valuesets.derived[
+                derivedIgId
+              ] = {
                 value: ValuesetService.extractVSWithVersion(
                   derivedBinding.valuesets,
                   derivedBinding.versions,
@@ -1185,235 +1208,181 @@ let CalculationService = {
                   derivedIgId
                 ),
               };
-          } else {
-            bindingDifferential.data.context.derived[derivedIgId] = {
-              value: context,
-            };
-            if (
-              derivedBinding.strength !=
-              bindingDifferential.data.strength.src.value
-            ) {
-              if (
-                !bindingDifferential.data.strength.derived[
-                  derivedIgId
-                ]
-              ) {
-                differential.changed = true;
-                differential.data.changed = true;
-                differential.data.changeTypes.push('valueset');
-                bindingDifferential.changed = true;
-                bindingDifferential.data.changed = true;
-                changed = true;
-                const compliance = MetricService.updateBindingMetrics(
-                  derivedIgId,
-                  originalProfile,
-                  'strength'
-                );
-                bindingDifferential.data.strength.derived[
-                  derivedIgId
-                ] = {
-                  value: derivedBinding.strength,
-                  compliance,
+            } else {
+              bindingDifferential.data.context.derived[derivedIgId] =
+                {
+                  value: context,
                 };
-              }
-            }
-
-            const derivedLocations = ValuesetService.extractLocations(
-              derivedBinding.locations
-            );
-            const locationsDiff = _.difference(
-              derivedLocations,
-              bindingDifferential.data.locations.src.value
-            );
-            if (locationsDiff && locationsDiff.length > 0) {
               if (
-                !bindingDifferential.data.locations.derived[
-                  derivedIgId
-                ]
+                derivedBinding.strength !=
+                bindingDifferential.data.strength.src.value
               ) {
-                differential.changed = true;
-                differential.data.changed = true;
-                differential.data.changeTypes.push('valueset');
-                bindingDifferential.changed = true;
-                bindingDifferential.data.changed = true;
-                changed = true;
-                const compliance = MetricService.updateBindingMetrics(
-                  derivedIgId,
-                  originalProfile,
-                  'location'
-                );
-                bindingDifferential.data.locations.derived[
-                  derivedIgId
-                ] = {
-                  value: derivedLocations,
-                  compliance,
-                };
-              }
-            }
-
-            derivedBinding.valuesets.forEach((vs, i) => {
-              if (
-                valuesetsMap[derivedIgId] &&
-                valuesetsMap[derivedIgId][vs] &&
-                bindingDifferential.data.valuesets.src.value
-              ) {
-                const srcVs =
-                  bindingDifferential.data.valuesets.src.value.find(
-                    (v) => {
-                      return (
-                        v.version === derivedBinding.versions[i] &&
-                        v.bindingIdentifier === vs
-                      );
-                    }
-                  );
-
-                if (srcVs) {
-                  // TODO check why valuesetsMap[srcIgId][srcVs.bindingIdentifier] can be null sometimes
-                  if (
-                    valuesetsMap[srcIgId][srcVs.bindingIdentifier]
-                  ) {
-                    // compare codes
-                    const comparedCodes =
-                      ValuesetService.compareCodes(
-                        valuesetsMap[srcIgId][
-                          srcVs.bindingIdentifier
-                        ][srcVs.version].children,
-                        valuesetsMap[derivedIgId][vs][
-                          derivedBinding.versions[i]
-                        ].children,
-                        originalProfile,
-                        derivedIgId,
-                        vs,
-                        derivedBinding.versions[i]
-                      );
-
-                    let diff = {
-                      bindingIdentifier: vs,
-                      version: derivedBinding.versions[i],
-                      status: 'unchanged',
-                    };
-                    if (comparedCodes.changed) {
-                      differential.changed = true;
-                      differential.data.changed = true;
-                      differential.data.changeTypes.push('valueset');
-                      bindingDifferential.changed = true;
-                      bindingDifferential.data.changed = true;
-                      bindingDifferential.data.showCodes = true;
-                      if (!bindingDifferential.data.igs) {
-                        bindingDifferential.data.igs = {};
-                      }
-                      bindingDifferential.data.igs[derivedIgId] = {
-                        showCodes: true,
-                        status: 'changed',
-                      };
-                      changed = true;
-                      diff.status = 'changed';
-                      diff.codes = comparedCodes.list;
-                      const compliance =
-                        MetricService.updateBindingMetrics(
-                          derivedIgId,
-                          originalProfile,
-                          'codes'
-                        );
-                      if (
-                        !bindingDifferential.data.valuesets.derived[
-                          derivedIgId
-                        ]
-                      ) {
-                        bindingDifferential.data.valuesets.derived[
-                          derivedIgId
-                        ] = {
-                          value: [],
-                          compliance,
-                        };
-                      }
-                      bindingDifferential.data.valuesets.derived[
-                        derivedIgId
-                      ].value.push(diff);
-                    } else {
-                      // if (
-                      //   !bindingDifferential.data.valuesets.derived[
-                      //     derivedIgId
-                      //   ]
-                      // ) {
-                      //   bindingDifferential.data.valuesets.derived[
-                      //     derivedIgId
-                      //   ] = {
-                      //     value: [],
-                      //   };
-                      // }
-                      // if (
-                      //   bindingDifferential.data.valuesets.derived[
-                      //     derivedIgId
-                      //   ]
-                      // )
-                      // bindingDifferential.data.valuesets.derived[
-                      //   derivedIgId
-                      // ].value.push(diff);
-                    }
-                  }
-                } else {
-                  // New Value set added to binding
+                if (
+                  !bindingDifferential.data.strength.derived[
+                    derivedIgId
+                  ]
+                ) {
                   differential.changed = true;
                   differential.data.changed = true;
                   differential.data.changeTypes.push('valueset');
                   bindingDifferential.changed = true;
                   bindingDifferential.data.changed = true;
-                  bindingDifferential.data.showCodes = true;
-                  if (!bindingDifferential.data.igs) {
-                    bindingDifferential.data.igs = {};
-                  }
-                  bindingDifferential.data.igs[derivedIgId] = {
-                    showCodes: true,
-                    status: 'added',
-                  };
                   changed = true;
                   const compliance =
                     MetricService.updateBindingMetrics(
                       derivedIgId,
                       originalProfile,
-                      'vs'
+                      'strength'
                     );
-
-                  if (
-                    !bindingDifferential.data.valuesets.derived[
-                      derivedIgId
-                    ]
-                  ) {
-                    bindingDifferential.data.valuesets.derived[
-                      derivedIgId
-                    ] = {
-                      value: [],
-                      compliance,
-                    };
-                  }
-                  bindingDifferential.data.valuesets.derived[
+                  bindingDifferential.data.strength.derived[
                     derivedIgId
-                  ].value.push({
-                    bindingIdentifier: vs,
-                    version: derivedBinding.versions[i],
-                    codes:
-                      valuesetsMap[derivedIgId][vs][
-                        derivedBinding.versions[i]
-                      ].children,
-                    status: 'added',
-                  });
+                  ] = {
+                    value: derivedBinding.strength,
+                    compliance,
+                  };
                 }
               }
-            });
 
-            if (bindingDifferential.data.valuesets.src.value) {
-              bindingDifferential.data.valuesets.src.value.forEach(
-                (valueset) => {
-                  let vs = derivedBinding.valuesets.find((v, i) => {
-                    return (
-                      derivedBinding.versions[i] ===
-                        valueset.version &&
-                      v === valueset.bindingIdentifier
+              const derivedLocations =
+                ValuesetService.extractLocations(
+                  derivedBinding.locations
+                );
+              const locationsDiff = _.difference(
+                derivedLocations,
+                bindingDifferential.data.locations.src.value
+              );
+              if (locationsDiff && locationsDiff.length > 0) {
+                if (
+                  !bindingDifferential.data.locations.derived[
+                    derivedIgId
+                  ]
+                ) {
+                  differential.changed = true;
+                  differential.data.changed = true;
+                  differential.data.changeTypes.push('valueset');
+                  bindingDifferential.changed = true;
+                  bindingDifferential.data.changed = true;
+                  changed = true;
+                  const compliance =
+                    MetricService.updateBindingMetrics(
+                      derivedIgId,
+                      originalProfile,
+                      'location'
                     );
-                  });
-                  if (!vs) {
-                    //vs removed from binding
+                  bindingDifferential.data.locations.derived[
+                    derivedIgId
+                  ] = {
+                    value: derivedLocations,
+                    compliance,
+                  };
+                }
+              }
+
+              derivedBinding.valuesets.forEach((vs, i) => {
+                if (
+                  valuesetsMap[derivedIgId] &&
+                  valuesetsMap[derivedIgId][vs] &&
+                  bindingDifferential.data.valuesets.src.value
+                ) {
+                  const srcVs =
+                    bindingDifferential.data.valuesets.src.value.find(
+                      (v) => {
+                        return (
+                          v.version === derivedBinding.versions[i] &&
+                          v.bindingIdentifier === vs
+                        );
+                      }
+                    );
+
+                  if (srcVs) {
+                    // TODO check why valuesetsMap[srcIgId][srcVs.bindingIdentifier] can be null sometimes
+                    if (
+                      valuesetsMap[srcIgId][srcVs.bindingIdentifier]
+                    ) {
+                      // compare codes
+                      const comparedCodes =
+                        ValuesetService.compareCodes(
+                          valuesetsMap[srcIgId][
+                            srcVs.bindingIdentifier
+                          ][srcVs.version].children,
+                          valuesetsMap[derivedIgId][vs][
+                            derivedBinding.versions[i]
+                          ].children,
+                          originalProfile,
+                          derivedIgId,
+                          vs,
+                          derivedBinding.versions[i]
+                        );
+
+                      let diff = {
+                        bindingIdentifier: vs,
+                        version: derivedBinding.versions[i],
+                        status: 'unchanged',
+                      };
+                      if (comparedCodes.changed) {
+                        differential.changed = true;
+                        differential.data.changed = true;
+                        differential.data.changeTypes.push(
+                          'valueset'
+                        );
+                        bindingDifferential.changed = true;
+                        bindingDifferential.data.changed = true;
+                        bindingDifferential.data.showCodes = true;
+                        if (!bindingDifferential.data.igs) {
+                          bindingDifferential.data.igs = {};
+                        }
+                        bindingDifferential.data.igs[derivedIgId] = {
+                          showCodes: true,
+                          status: 'changed',
+                        };
+                        changed = true;
+                        diff.status = 'changed';
+                        diff.codes = comparedCodes.list;
+                        const compliance =
+                          MetricService.updateBindingMetrics(
+                            derivedIgId,
+                            originalProfile,
+                            'codes'
+                          );
+                        if (
+                          !bindingDifferential.data.valuesets.derived[
+                            derivedIgId
+                          ]
+                        ) {
+                          bindingDifferential.data.valuesets.derived[
+                            derivedIgId
+                          ] = {
+                            value: [],
+                            compliance,
+                          };
+                        }
+                        bindingDifferential.data.valuesets.derived[
+                          derivedIgId
+                        ].value.push(diff);
+                      } else {
+                        // if (
+                        //   !bindingDifferential.data.valuesets.derived[
+                        //     derivedIgId
+                        //   ]
+                        // ) {
+                        //   bindingDifferential.data.valuesets.derived[
+                        //     derivedIgId
+                        //   ] = {
+                        //     value: [],
+                        //   };
+                        // }
+                        // if (
+                        //   bindingDifferential.data.valuesets.derived[
+                        //     derivedIgId
+                        //   ]
+                        // )
+                        // bindingDifferential.data.valuesets.derived[
+                        //   derivedIgId
+                        // ].value.push(diff);
+                      }
+                    }
+                  } else {
+                    // New Value set added to binding
                     differential.changed = true;
                     differential.data.changed = true;
                     differential.data.changeTypes.push('valueset');
@@ -1425,9 +1394,16 @@ let CalculationService = {
                     }
                     bindingDifferential.data.igs[derivedIgId] = {
                       showCodes: true,
-                      status: 'deleted',
+                      status: 'added',
                     };
                     changed = true;
+                    const compliance =
+                      MetricService.updateBindingMetrics(
+                        derivedIgId,
+                        originalProfile,
+                        'vs'
+                      );
+
                     if (
                       !bindingDifferential.data.valuesets.derived[
                         derivedIgId
@@ -1437,99 +1413,156 @@ let CalculationService = {
                         derivedIgId
                       ] = {
                         value: [],
+                        compliance,
                       };
                     }
-
                     bindingDifferential.data.valuesets.derived[
                       derivedIgId
                     ].value.push({
-                      bindingIdentifier: valueset.bindingIdentifier,
+                      bindingIdentifier: vs,
+                      version: derivedBinding.versions[i],
                       codes:
-                        valuesetsMap[derivedIgId][
-                          valueset.bindingIdentifier
-                        ] &&
-                        valuesetsMap[derivedIgId][
-                          valueset.bindingIdentifier
-                        ][valueset.version]
-                          ? valuesetsMap[derivedIgId][
-                              valueset.bindingIdentifier
-                            ][valueset.version].children
-                          : [],
-                      status: 'deleted',
+                        valuesetsMap[derivedIgId][vs][
+                          derivedBinding.versions[i]
+                        ].children,
+                      status: 'added',
                     });
                   }
                 }
-              );
+              });
+
+              if (bindingDifferential.data.valuesets.src.value) {
+                bindingDifferential.data.valuesets.src.value.forEach(
+                  (valueset) => {
+                    let vs = derivedBinding.valuesets.find((v, i) => {
+                      return (
+                        derivedBinding.versions[i] ===
+                          valueset.version &&
+                        v === valueset.bindingIdentifier
+                      );
+                    });
+                    if (!vs) {
+                      //vs removed from binding
+                      differential.changed = true;
+                      differential.data.changed = true;
+                      differential.data.changeTypes.push('valueset');
+                      bindingDifferential.changed = true;
+                      bindingDifferential.data.changed = true;
+                      bindingDifferential.data.showCodes = true;
+                      if (!bindingDifferential.data.igs) {
+                        bindingDifferential.data.igs = {};
+                      }
+                      bindingDifferential.data.igs[derivedIgId] = {
+                        showCodes: true,
+                        status: 'deleted',
+                      };
+                      changed = true;
+                      if (
+                        !bindingDifferential.data.valuesets.derived[
+                          derivedIgId
+                        ]
+                      ) {
+                        bindingDifferential.data.valuesets.derived[
+                          derivedIgId
+                        ] = {
+                          value: [],
+                        };
+                      }
+
+                      bindingDifferential.data.valuesets.derived[
+                        derivedIgId
+                      ].value.push({
+                        bindingIdentifier: valueset.bindingIdentifier,
+                        codes:
+                          valuesetsMap[derivedIgId][
+                            valueset.bindingIdentifier
+                          ] &&
+                          valuesetsMap[derivedIgId][
+                            valueset.bindingIdentifier
+                          ][valueset.version]
+                            ? valuesetsMap[derivedIgId][
+                                valueset.bindingIdentifier
+                              ][valueset.version].children
+                            : [],
+                        status: 'deleted',
+                      });
+                    }
+                  }
+                );
+              }
             }
-          }
-        } else {
-          // Added binding
-          // TODO: update compliance
-          differential.changed = true;
-          differential.data.changed = true;
-          differential.data.changeTypes.push('valueset');
+          } else {
+            // Added binding
+            // TODO: update compliance
+            differential.changed = true;
+            differential.data.changed = true;
+            differential.data.changeTypes.push('valueset');
 
-          changed = true;
-          let newBindingDifferential = {
-            data: {
-              status: 'added',
-              showCodes: true,
-              changed: true,
-              position: derivedBinding.position,
-              path: derivedBinding.path,
-              context: {
-                src: {},
-                derived: {},
-              },
-              bindingLocation: derivedBinding.bindingLocation,
-              locations: {
-                src: {},
-                derived: {},
-              },
-              LocationInfoType: derivedBinding.LocationInfoType,
-              strength: {
-                src: {
-                  // value: derivedBinding.strength
+            changed = true;
+            let newBindingDifferential = {
+              data: {
+                status: 'added',
+                showCodes: true,
+                changed: true,
+                position: derivedBinding.position,
+                path: derivedBinding.path,
+                context: {
+                  src: {},
+                  derived: {},
                 },
-                derived: {},
-              },
-              valuesets: {
-                src: {},
-                derived: {},
-              },
+                bindingLocation: derivedBinding.bindingLocation,
+                locations: {
+                  src: {},
+                  derived: {},
+                },
+                LocationInfoType: derivedBinding.LocationInfoType,
+                strength: {
+                  src: {
+                    // value: derivedBinding.strength
+                  },
+                  derived: {},
+                },
+                valuesets: {
+                  src: {},
+                  derived: {},
+                },
 
-              codes: ValuesetService.buildDerivedCodes(
-                {},
-                derivedBinding.valuesets,
-                derivedBinding.versions,
-                valuesetsMap,
-                derivedIgId
-              ),
-            },
-            changed: true,
-          };
-          if (!newBindingDifferential.data.igs) {
-            newBindingDifferential.data.igs = {};
-          }
-          newBindingDifferential.data.igs[derivedIgId] = {
-            showCodes: true,
-            status: 'added',
-          };
-          newBindingDifferential.data.context.derived[derivedIgId] = {
-            value: context,
-          };
-          newBindingDifferential.data.strength.derived[derivedIgId] =
-            {
+                codes: ValuesetService.buildDerivedCodes(
+                  {},
+                  derivedBinding.valuesets,
+                  derivedBinding.versions,
+                  valuesetsMap,
+                  derivedIgId
+                ),
+              },
+              changed: true,
+            };
+            if (!newBindingDifferential.data.igs) {
+              newBindingDifferential.data.igs = {};
+            }
+            newBindingDifferential.data.igs[derivedIgId] = {
+              showCodes: true,
+              status: 'added',
+            };
+            newBindingDifferential.data.context.derived[derivedIgId] =
+              {
+                value: context,
+              };
+            newBindingDifferential.data.strength.derived[
+              derivedIgId
+            ] = {
               value: derivedBinding.strength,
             };
-          newBindingDifferential.data.locations.derived[derivedIgId] =
-            {
+            newBindingDifferential.data.locations.derived[
+              derivedIgId
+            ] = {
               value: ValuesetService.extractLocations(
                 derivedBinding.locations
               ),
             };
-          newBindingDifferential.data.valuesets.derived[derivedIgId] =
-            {
+            newBindingDifferential.data.valuesets.derived[
+              derivedIgId
+            ] = {
               value: ValuesetService.extractVSWithVersion(
                 derivedBinding.valuesets,
                 derivedBinding.versions,
@@ -1537,51 +1570,54 @@ let CalculationService = {
                 derivedIgId
               ),
             };
-          if (!differential.bindings) {
-            differential.bindings = [];
+            if (!differential.bindings) {
+              differential.bindings = [];
+            }
+            differential.bindings.push(newBindingDifferential);
           }
-          differential.bindings.push(newBindingDifferential);
         }
       });
-      differential.bindings.forEach((binding) => {
-        let derivedBinding = derivedBindings.find(
-          (b) => binding.data && binding.data.path === b.path
-        );
-        if (!derivedBinding && binding.data.status !== 'added') {
-          //binding removed
-          differential.changed = true;
-          differential.data.changed = true;
-          differential.data.changeTypes.push('valueset');
-          binding.changed = true;
-          binding.data.changed = true;
-          if (!binding.data.igs) {
-            binding.data.igs = {};
+      if (differential.bindings) {
+        differential.bindings.forEach((binding) => {
+          let derivedBinding = derivedBindings.find(
+            (b) => binding.data && binding.data.path === b.path
+          );
+          if (!derivedBinding && binding.data.status !== 'added') {
+            //binding removed
+            differential.changed = true;
+            differential.data.changed = true;
+            differential.data.changeTypes.push('valueset');
+            binding.changed = true;
+            binding.data.changed = true;
+            if (!binding.data.igs) {
+              binding.data.igs = {};
+            }
+            binding.data.igs[derivedIgId] = {
+              showCodes: true,
+              status: 'changed',
+            };
+            changed = true;
+            if (!binding.data.derived) {
+              binding.data.derived = {};
+            }
+            binding.data.derived[derivedIgId] = {
+              status: 'deleted',
+            };
+            binding.data.locations.derived[derivedIgId] = {
+              value: binding.data.locations.src.value,
+              status: 'deleted',
+            };
+            binding.data.strength.derived[derivedIgId] = {
+              value: binding.data.strength.src.value,
+              status: 'deleted',
+            };
+            binding.data.valuesets.derived[derivedIgId] = {
+              value: binding.data.valuesets.src.value,
+              status: 'deleted',
+            };
           }
-          binding.data.igs[derivedIgId] = {
-            showCodes: true,
-            status: 'changed',
-          };
-          changed = true;
-          if (!binding.data.derived) {
-            binding.data.derived = {};
-          }
-          binding.data.derived[derivedIgId] = {
-            status: 'deleted',
-          };
-          binding.data.locations.derived[derivedIgId] = {
-            value: binding.data.locations.src.value,
-            status: 'deleted',
-          };
-          binding.data.strength.derived[derivedIgId] = {
-            value: binding.data.strength.src.value,
-            status: 'deleted',
-          };
-          binding.data.valuesets.derived[derivedIgId] = {
-            value: binding.data.valuesets.src.value,
-            status: 'deleted',
-          };
-        }
-      });
+        });
+      }
     }
     return changed;
   },
@@ -1703,9 +1739,9 @@ let CalculationService = {
             segmentDifferential.data.changed = true;
             segmentDifferential.data.changeTypes.push('field');
 
-            fieldDifferential.changed = true;
-            fieldDifferential.data.changed = true;
-            fieldDifferential.data.changeTypes.push('field');
+            differential.changed = true;
+            differential.data.changed = true;
+            differential.data.changeTypes.push('field');
 
             differential.data.name.derived[derivedIgId] = {
               value: derivedField.name,
@@ -2524,6 +2560,7 @@ let CalculationService = {
           fieldDifferential.bindings,
           'datatype_field'
         );
+        fieldDifferential.bindings = null;
       }
 
       if (
@@ -3131,6 +3168,7 @@ let CalculationService = {
           differential.bindings,
           'datatype_component'
         );
+        differential.bindings = null;
       }
       if (
         srcDt.children &&
