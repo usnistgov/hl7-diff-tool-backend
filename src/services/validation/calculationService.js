@@ -89,7 +89,8 @@ let CalculationService = {
           configuration,
           sourceProfile.id,
           datatypesMap,
-          valuesetsMap
+          valuesetsMap,
+          sourceProfile.valuesetBindings
         ),
         conformanceStatements: this.extractConformanceStatements(
           profile.conformanceStatements
@@ -130,7 +131,8 @@ let CalculationService = {
           configuration,
           segmentsMap,
           datatypesMap,
-          valuesetsMap
+          valuesetsMap,
+          derivedIg.valuesetBindings
         );
       });
       const originalProfile = results.profiles[0];
@@ -235,7 +237,8 @@ let CalculationService = {
     configuration,
     segmentsMap,
     datatypesMap,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings
   ) {
     const confProfile = derivedIg.profile;
     if (confProfile) {
@@ -262,7 +265,8 @@ let CalculationService = {
           configuration,
           segmentsMap,
           datatypesMap,
-          valuesetsMap
+          valuesetsMap,
+          valuesetBindings
         );
         this.compareConformanceStatements(
           originalProfile,
@@ -287,7 +291,8 @@ let CalculationService = {
     configuration,
     segmentsMap,
     datatypesMap,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings
   ) {
     let segmentRefs = [];
 
@@ -301,7 +306,8 @@ let CalculationService = {
             configuration,
             derivedIgId,
             datatypesMap,
-            valuesetsMap
+            valuesetsMap,
+            valuesetBindings
           )
         );
       }
@@ -314,7 +320,8 @@ let CalculationService = {
             configuration,
             derivedIgId,
             datatypesMap,
-            valuesetsMap
+            valuesetsMap,
+            valuesetBindings
           )
         );
       }

@@ -1,190 +1,207 @@
-const DatatypeService = require("./datatypeService");
-const ValuesetService = require("./valuesetService");
-const ComparisonService = require("../comparisonService");
+const DatatypeService = require('./datatypeService');
+const ValuesetService = require('./valuesetService');
+const ComparisonService = require('../comparisonService');
 
 let SegmentService = {
-  populateSegmentsMap: function(segmentsMap, igId, segments) {
+  populateSegmentsMap: function (segmentsMap, igId, segments) {
     if (segments) {
       if (!segmentsMap[igId]) {
         segmentsMap[igId] = {};
       }
-      segments.forEach(segment => {
-        const segId = segment["$"].ID;
+      segments.forEach((segment) => {
+        const segId = segment['$'].ID;
         if (!segmentsMap[igId][segId]) {
           segmentsMap[igId][segId] = this.extractSegment(segment);
         }
       });
     }
   },
-  extractSegment: function(segment) {
+  extractSegment: function (segment) {
     let result = {};
     if (segment) {
       result = {
-        id: segment["$"].ID,
-        title: segment["$"].Label,
-        name: segment["$"].Name,
-        description: segment["$"].Description,
-        label: segment["$"].Label,
-        version: segment["$"].Version,
+        id: segment['$'].ID,
+        title: segment['$'].Label,
+        name: segment['$'].Name,
+        description: segment['$'].Description,
+        label: segment['$'].Label,
+        version: segment['$'].Version,
         children: this.extractFields(segment.Field),
-        conformanceStatements: segment.conformanceStatements ? segment.conformanceStatements : []
+        conformanceStatements: segment.conformanceStatements
+          ? segment.conformanceStatements
+          : [],
       };
-     
-      if (segment.Reasons && segment.Reasons[0] && segment.Reasons[0].Reason) {
+
+      if (
+        segment.Reasons &&
+        segment.Reasons[0] &&
+        segment.Reasons[0].Reason
+      ) {
         let reasonsMap = {};
         const reasonsForChange = segment.Reasons[0].Reason;
-        reasonsForChange.forEach(reason => {
-          reason = reason["$"];
-          let splits = reason.Location.split(".");
+        reasonsForChange.forEach((reason) => {
+          reason = reason['$'];
+          let splits = reason.Location.split('.');
           splits.shift();
-          splits = splits.join(".");
+          splits = splits.join('.');
           if (!reasonsMap[splits]) {
             reasonsMap[splits] = {};
           }
-          reasonsMap[splits][reason.Property.toLowerCase()] = reason.Text;
+          reasonsMap[splits][reason.Property.toLowerCase()] =
+            reason.Text;
         });
         result.fieldReasons = reasonsMap;
       }
     }
     return result;
   },
-  extractFields: function(fields) {
+  extractFields: function (fields) {
     let result = [];
     if (fields) {
-      fields.forEach(field => {
+      fields.forEach((field) => {
         result.push({
-          name: field["$"].Name,
-          usage: field["$"].Usage,
-          datatype: field["$"].Datatype,
-          confLength: field["$"].ConfLength,
-          minLength: field["$"].MinLength,
-          maxLength: field["$"].MaxLength,
-          min: field["$"].Min,
-          max: field["$"].Max,
-          position: field["$"].position,
-          binding: field["$"].Binding,
-          bindingStrength: field["$"].BindingStrength,
-          bindingLocation: field["$"].BindingLocation,
-          predicate: field["$"].predicate
+          name: field['$'].Name,
+          usage: field['$'].Usage,
+          datatype: field['$'].Datatype,
+          confLength: field['$'].ConfLength,
+          minLength: field['$'].MinLength,
+          maxLength: field['$'].MaxLength,
+          min: field['$'].Min,
+          max: field['$'].Max,
+          position: field['$'].position,
+          binding: field['$'].Binding,
+          bindingStrength: field['$'].BindingStrength,
+          bindingLocation: field['$'].BindingLocation,
+          predicate: field['$'].predicate,
         });
       });
     }
     return result;
   },
-  populateConformanceStatements: function( conformanceStatements) {
+  populateConformanceStatements: function (conformanceStatements) {
     let results = [];
     if (conformanceStatements) {
-      conformanceStatements.forEach(conformanceStatement => {
+      conformanceStatements.forEach((conformanceStatement) => {
         let diff = {
           data: {
             id: conformanceStatement.id,
             description: {
               src: { value: conformanceStatement.description },
-              derived: {}
-            }
-          }
-      
+              derived: {},
+            },
+          },
         };
         results.push(diff);
       });
     }
     return results;
   },
-  populateSrcFields: function(
+  populateSrcFields: function (
     igId,
     fields,
     configuration,
     path,
     datatypesMap,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings
   ) {
     let results = [];
-    fields.forEach(field => {
+    fields.forEach((field) => {
       let currentPath = path;
       currentPath += `.${field.position}`;
       let fieldDifferential = {
         data: {
           name: {
             src: {
-              value: field.name
+              value: field.name,
             },
-            derived: {}
+            derived: {},
           },
           position: field.position,
-          type: "field",
+          type: 'field',
           path: currentPath,
-          changeTypes: []
-
+          changeTypes: [],
         },
         changed: false,
-        changeTypes: []
-
+        changeTypes: [],
       };
 
       if (configuration.usage) {
         fieldDifferential.data.usage = {
           src: {
-            value: field.usage
+            value: field.usage,
           },
-          derived: {}
+          derived: {},
         };
       }
       if (configuration.predicate) {
         fieldDifferential.data.predicate = {
           src: {
-            value: field.predicate
+            value: field.predicate,
           },
-          derived: {}
+          derived: {},
         };
       }
       if (configuration.cardinality) {
-        const card = ComparisonService.createCard(field.min, field.max);
+        const card = ComparisonService.createCard(
+          field.min,
+          field.max
+        );
 
         fieldDifferential.data.cardinality = {
           src: {
-            value: card
+            value: card,
           },
-          derived: {}
+          derived: {},
         };
       }
       if (configuration.datatype) {
         fieldDifferential.data.datatype = {
           src: {
-            value: field.datatype
+            value: field.datatype,
           },
-          derived: {}
+          derived: {},
         };
       }
       if (configuration.valueset) {
+        if (!fieldDifferential.data.bindings) {
+          fieldDifferential.data.bindings = [];
+        }
         if (field.binding) {
-          fieldDifferential.data.bindings = ValuesetService.populateSrcValuesetsValidation(
-            igId,
-            field,
-            configuration,
-            valuesetsMap
+          fieldDifferential.data.bindings.push(
+            ...ValuesetService.populateSrcValuesetsValidation(
+              igId,
+              field,
+              configuration,
+              valuesetsMap,
+              valuesetBindings
+            )
           );
         }
+        // initialize with bindings from valuesetBindings.xml file
       }
 
       if (
         datatypesMap[igId][field.datatype].children &&
         datatypesMap[igId][field.datatype].children.length > 0
       ) {
-        fieldDifferential.children = DatatypeService.populateSrcDatatypes(
-          igId,
-          datatypesMap[igId][field.datatype].children,
-          configuration,
-          currentPath,
-          datatypesMap,
-          1,
-          valuesetsMap
-        );
+        fieldDifferential.children =
+          DatatypeService.populateSrcDatatypes(
+            igId,
+            datatypesMap[igId][field.datatype].children,
+            configuration,
+            currentPath,
+            datatypesMap,
+            1,
+            valuesetsMap,
+            valuesetBindings
+          );
       }
 
       results.push(fieldDifferential);
     });
     return results;
-  }
+  },
 };
 
 module.exports = SegmentService;

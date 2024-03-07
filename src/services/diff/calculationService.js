@@ -1032,7 +1032,13 @@ let CalculationService = {
           differential.coConstraints.push(diff);
         } else {
           // coConstraint found in diff. it may either be added from a previous calculated profile or it was in the original one. Need to compare based on another variable
-          if (coConstraintDifferential.data.tables.src.value) {
+          if (
+            coConstraintDifferential &&
+            coConstraintDifferential.data &&
+            coConstraintDifferential.data.tables &&
+            coConstraintDifferential.data.tables.src &&
+            coConstraintDifferential.data.tables.src.value
+          ) {
             // table was in the src profile. Need to compare the 2 tables
             derivedCoConstraint.tables.forEach((table, i) => {
               let originalTable =

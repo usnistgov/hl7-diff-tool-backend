@@ -1,34 +1,37 @@
-const ValuesetService = require("./valuesetService");
-const SegmentService = require("./segmentService");
+const ValuesetService = require('./valuesetService');
+const SegmentService = require('./segmentService');
 
 let DatatypeService = {
-  populateDatatypesMap: function(datatypesMap, igId, datatypes) {
+  populateDatatypesMap: function (datatypesMap, igId, datatypes) {
     if (datatypes) {
       if (!datatypesMap[igId]) {
         datatypesMap[igId] = {};
       }
-      datatypes.forEach(datatype => {
-        const dtLabel = datatype["$"].Label + "+" + datatype["$"].Version;
+      datatypes.forEach((datatype) => {
+        const dtLabel =
+          datatype['$'].Label + '+' + datatype['$'].Version;
 
-        if (!datatypesMap[igId][datatype["$"].ID]) {
-          datatypesMap[igId][datatype["$"].ID] = this.extractDatatype(datatype);
+        if (!datatypesMap[igId][datatype['$'].ID]) {
+          datatypesMap[igId][datatype['$'].ID] =
+            this.extractDatatype(datatype);
         }
       });
     }
   },
-  extractDatatype: function(datatype) {
+  extractDatatype: function (datatype) {
     let result = {};
     if (datatype) {
       result = {
-        id: datatype["$"].Id,
-        title: datatype["$"].Label,
-        name: datatype["$"].Name,
-        version: datatype["$"].Version,
-        description: datatype["$"].Description,
-        label: datatype["$"].Label,
+        id: datatype['$'].Id,
+        title: datatype['$'].Label,
+        name: datatype['$'].Name,
+        version: datatype['$'].Version,
+        description: datatype['$'].Description,
+        label: datatype['$'].Label,
         children: this.extractComponents(datatype.Component),
-        conformanceStatements: datatype.conformanceStatements ? datatype.conformanceStatements : []
-
+        conformanceStatements: datatype.conformanceStatements
+          ? datatype.conformanceStatements
+          : [],
       };
       if (
         datatype.Reasons &&
@@ -37,27 +40,26 @@ let DatatypeService = {
       ) {
         let reasonsMap = {};
         const reasonsForChange = datatype.Reasons[0].Reason;
-        reasonsForChange.forEach(reason => {
-          reason = reason["$"];
-          let splits = reason.Location.split(".");
+        reasonsForChange.forEach((reason) => {
+          reason = reason['$'];
+          let splits = reason.Location.split('.');
           splits.shift();
-          splits = splits.join(".");
+          splits = splits.join('.');
           if (!reasonsMap[splits]) {
             reasonsMap[splits] = {};
           }
-          reasonsMap[splits][reason.Property.toLowerCase()] = reason.Text;
+          reasonsMap[splits][reason.Property.toLowerCase()] =
+            reason.Text;
         });
         result.componentReasons = reasonsMap;
       }
-
     }
     return result;
   },
-  extractComponents: function(components) {
+  extractComponents: function (components) {
     let result = [];
     if (components) {
-      components.forEach(component => {
-    
+      components.forEach((component) => {
         result.push({
           name: component['$'].Name,
           usage: component['$'].Usage,
@@ -70,65 +72,64 @@ let DatatypeService = {
           bindingLocation: component['$'].BindingLocation,
           position: component['$'].position,
           predicate: component['$'].predicate,
-
         });
       });
     }
     return result;
   },
-  populateSrcDatatypes: function(
+  populateSrcDatatypes: function (
     igId,
     components,
     configuration,
     path,
     datatypesMap,
     level,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings
   ) {
     let results = [];
-    components.forEach(component => {
+    components.forEach((component) => {
       let currentPath = path;
       currentPath += `.${component.position}`;
       let componentDifferential = {
         data: {
           name: {
             src: {
-              value: component.name
+              value: component.name,
             },
-            derived: {}
+            derived: {},
           },
           position: component.position,
-          type: level === 1 ? "component" : "subcomponent",
+          type: level === 1 ? 'component' : 'subcomponent',
           path: currentPath,
-          changeTypes: []
-
+          changeTypes: [],
         },
-        changed: false
+        changed: false,
       };
 
       if (configuration.usage) {
         componentDifferential.data.usage = {
           src: {
-            value: component.usage
+            value: component.usage,
           },
-          derived: {}
+          derived: {},
         };
       }
       if (configuration.predicate) {
         componentDifferential.data.predicate = {
           src: {
-            value: component.predicate
+            value: component.predicate,
           },
-          derived: {}
+          derived: {},
         };
       }
-    
+
       if (configuration.datatype) {
         componentDifferential.data.datatype = {
           src: {
-            value: component.datatype
+            value: component.datatype,
           },
-          derived: {}
+          derived: {},
         };
       }
       if (
@@ -142,28 +143,30 @@ let DatatypeService = {
           currentPath,
           datatypesMap,
           2,
-          valuesetsMap
+          valuesetsMap,
+          valuesetBindings
         );
       }
       if (configuration.valueset) {
         if (component.binding) {
-          componentDifferential.data.bindings = ValuesetService.populateSrcValuesetsValidation(
-            igId,
-            component,
-            configuration,
-            valuesetsMap,
-          );
+          componentDifferential.data.bindings =
+            ValuesetService.populateSrcValuesetsValidation(
+              igId,
+              component,
+              configuration,
+              valuesetsMap,
+              valuesetBindings
+            );
         }
-
       }
 
       results.push(componentDifferential);
     });
-    results.sort(function(a, b) {
+    results.sort(function (a, b) {
       return a.data.position - b.data.position;
     });
     return results;
-  }
+  },
 };
 
 module.exports = DatatypeService;

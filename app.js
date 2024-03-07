@@ -86,7 +86,6 @@ let server = app.listen(app.get('port'), function () {
 });
 
 function customJsonMiddleware(req, res, next) {
-  console.log('-------');
   const originalJson = res.json;
 
   res.json = function (data) {

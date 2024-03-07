@@ -169,7 +169,8 @@ let ValuesetService = {
     igId,
     element,
     configuration,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings
   ) {
     let results = [];
     if (element && element.binding) {
@@ -246,6 +247,7 @@ let ValuesetService = {
       fieldDifferential.data.bindings[0]
     ) {
       let bindingDiff = fieldDifferential.data.bindings[0];
+      // console.log(bindingDiff);
       if (derivedField.binding) {
         let strength = this.translateStrength(
           derivedField.bindingStrength
@@ -488,6 +490,8 @@ let ValuesetService = {
           status: 'deleted',
         };
       }
+
+      // add logic for When the bindings are in a seperate file and not in the Profile
     } else {
       if (derivedField.binding) {
         // Added binding
