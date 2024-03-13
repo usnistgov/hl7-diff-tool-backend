@@ -89,7 +89,8 @@ let CalculationService = {
           configuration,
           sourceProfile.id,
           datatypesMap,
-          valuesetsMap
+          valuesetsMap,
+          sourceProfile.valuesetBindings
         ),
         conformanceStatements: this.extractConformanceStatements(
           profile.conformanceStatements
@@ -130,7 +131,8 @@ let CalculationService = {
           configuration,
           segmentsMap,
           datatypesMap,
-          valuesetsMap
+          valuesetsMap,
+          derivedIg.valuesetBindings
         );
       });
       const originalProfile = results.profiles[0];
@@ -235,7 +237,8 @@ let CalculationService = {
     configuration,
     segmentsMap,
     datatypesMap,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings
   ) {
     const confProfile = derivedIg.profile;
     if (confProfile) {
@@ -262,14 +265,14 @@ let CalculationService = {
           configuration,
           segmentsMap,
           datatypesMap,
-          valuesetsMap
+          valuesetsMap,
+          valuesetBindings
         );
         this.compareConformanceStatements(
           originalProfile,
           derivedIg.id,
           confProfile.conformanceStatements
         );
-        // console.log(originalProfile.segmentRefs)
       } else {
         // Can't compare
       }
@@ -287,7 +290,8 @@ let CalculationService = {
     configuration,
     segmentsMap,
     datatypesMap,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings
   ) {
     let segmentRefs = [];
 
@@ -301,7 +305,8 @@ let CalculationService = {
             configuration,
             derivedIgId,
             datatypesMap,
-            valuesetsMap
+            valuesetsMap,
+            valuesetBindings
           )
         );
       }
@@ -314,7 +319,8 @@ let CalculationService = {
             configuration,
             derivedIgId,
             datatypesMap,
-            valuesetsMap
+            valuesetsMap,
+            valuesetBindings
           )
         );
       }
@@ -340,7 +346,8 @@ let CalculationService = {
               segmentsMap[derivedIgId][segmentRef.data.ref],
               configuration,
               datatypesMap,
-              valuesetsMap
+              valuesetsMap,
+              valuesetBindings
             );
           } else {
             // new segmentref
@@ -361,7 +368,8 @@ let CalculationService = {
     derivedSegment,
     configuration,
     datatypesMap,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings
   ) {
     if (srcSegment && derivedSegment) {
       this.compareFields(
@@ -373,7 +381,9 @@ let CalculationService = {
         derivedSegment.fieldReasons,
         configuration,
         datatypesMap,
-        valuesetsMap
+        valuesetsMap,
+        valuesetBindings,
+        derivedSegment.label
       );
       if (configuration.conformanceStatement) {
         this.compareConformanceStatements(
@@ -405,7 +415,9 @@ let CalculationService = {
     reasons,
     configuration,
     datatypesMap,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings,
+    derivedSegmentLabel
   ) {
     if (derivedFields.length >= segmentDifferential.children.length) {
       // New field may have been added. Need to check if the field from segmentDifferential was in the src profile or was added from a comparison of another derived profile (check for .added field)
@@ -445,7 +457,9 @@ let CalculationService = {
               reasons,
               configuration,
               datatypesMap,
-              valuesetsMap
+              valuesetsMap,
+              valuesetBindings,
+              derivedSegmentLabel
             );
           }
         } else {
@@ -541,7 +555,9 @@ let CalculationService = {
               reasons,
               configuration,
               datatypesMap,
-              valuesetsMap
+              valuesetsMap,
+              valuesetBindings,
+              derivedSegmentLabel
             );
           }
         } else {
@@ -680,7 +696,9 @@ let CalculationService = {
     reasons,
     configuration,
     datatypesMap,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings,
+    derivedSegmentLabel
   ) {
     if (reasons && reasons[fieldDifferential.data.position]) {
       if (!fieldDifferential.data.reason) {
@@ -764,7 +782,10 @@ let CalculationService = {
         derivedField,
         srcIgId,
         derivedIgId,
-        valuesetsMap
+        valuesetsMap,
+        valuesetBindings,
+        derivedSegmentLabel,
+        'segment'
       );
     }
     if (configuration.cardinality) {
@@ -865,7 +886,9 @@ let CalculationService = {
           derivedDt.componentReasons,
           configuration,
           datatypesMap,
-          valuesetsMap
+          valuesetsMap,
+          valuesetBindings,
+          derivedField.datatype
         );
       }
     }
@@ -881,7 +904,9 @@ let CalculationService = {
     reasons,
     configuration,
     datatypesMap,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings,
+    derivedDtLabel
   ) {
     let commonDifferential;
     if (componentDifferential) {
@@ -933,7 +958,9 @@ let CalculationService = {
               reasons,
               configuration,
               datatypesMap,
-              valuesetsMap
+              valuesetsMap,
+              valuesetBindings,
+              derivedDtLabel
             );
           }
         } else {
@@ -1060,7 +1087,9 @@ let CalculationService = {
               reasons,
               configuration,
               datatypesMap,
-              valuesetsMap
+              valuesetsMap,
+              valuesetBindings,
+              derivedDtLabel
             );
           }
         } else {
@@ -1113,7 +1142,9 @@ let CalculationService = {
     reasons,
     configuration,
     datatypesMap,
-    valuesetsMap
+    valuesetsMap,
+    valuesetBindings,
+    derivedDtLabel
   ) {
     if (reasons && reasons[differential.data.position]) {
       if (!differential.data.reason) {
@@ -1383,7 +1414,10 @@ let CalculationService = {
           derivedComponent,
           srcIgId,
           derivedIgId,
-          valuesetsMap
+          valuesetsMap,
+          valuesetBindings,
+          derivedDtLabel,
+          'datatype'
         );
       }
       if (
@@ -1402,7 +1436,9 @@ let CalculationService = {
           derivedDt.componentReasons,
           configuration,
           datatypesMap,
-          valuesetsMap
+          valuesetsMap,
+          valuesetBindings,
+          derivedComponent.datatype
         );
       }
     }
