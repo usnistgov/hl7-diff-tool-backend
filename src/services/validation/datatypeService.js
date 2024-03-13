@@ -155,7 +155,10 @@ let DatatypeService = {
               component,
               configuration,
               valuesetsMap,
-              valuesetBindings
+              valuesetBindings,
+              currentPath,
+              component.datatype,
+              'datatype'
             );
         }
       }

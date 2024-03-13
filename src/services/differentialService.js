@@ -270,18 +270,31 @@ let DifferentialService = {
               (segmentBindings) => {
                 sourceProfile.valuesetBindings.segmentsMap[
                   segmentBindings['$'].ID
-                ] = {
-                  bindingStrength:
-                    segmentBindings.ValueSetBinding[0]['$']
-                      .BindingStrength,
-                  target:
-                    segmentBindings.ValueSetBinding[0]['$'].Target,
-                  bindingLocations:
-                    segmentBindings.ValueSetBinding[0]
-                      .BindingLocations[0],
-                  bindings:
-                    segmentBindings.ValueSetBinding[0].Bindings[0],
-                };
+                ] = segmentBindings.ValueSetBinding.map(
+                  (vsBinding) => {
+                    return {
+                      bindingStrength: vsBinding['$'].BindingStrength,
+                      target: vsBinding['$'].Target,
+                      bindingLocations: vsBinding.BindingLocations[0],
+                      bindings: vsBinding.Bindings[0],
+                    };
+                  }
+                );
+
+                // sourceProfile.valuesetBindings.segmentsMap[
+                //   segmentBindings['$'].ID
+                // ] = {
+                //   bindingStrength:
+                //     segmentBindings.ValueSetBinding[0]['$']
+                //       .BindingStrength,
+                //   target:
+                //     segmentBindings.ValueSetBinding[0]['$'].Target,
+                //   bindingLocations:
+                //     segmentBindings.ValueSetBinding[0]
+                //       .BindingLocations[0],
+                //   bindings:
+                //     segmentBindings.ValueSetBinding[0].Bindings[0],
+                // };
               }
             );
           }
@@ -296,15 +309,25 @@ let DifferentialService = {
               (dtBindings) => {
                 sourceProfile.valuesetBindings.datatypesMap[
                   dtBindings['$'].ID
-                ] = {
-                  bindingStrength:
-                    dtBindings.ValueSetBinding[0]['$']
-                      .BindingStrength,
-                  target: dtBindings.ValueSetBinding[0]['$'].Target,
-                  bindingLocations:
-                    dtBindings.ValueSetBinding[0].BindingLocations[0],
-                  bindings: dtBindings.ValueSetBinding[0].Bindings[0],
-                };
+                ] = dtBindings.ValueSetBinding.map((vsBinding) => {
+                  return {
+                    bindingStrength: vsBinding['$'].BindingStrength,
+                    target: vsBinding['$'].Target,
+                    bindingLocations: vsBinding.BindingLocations[0],
+                    bindings: vsBinding.Bindings[0],
+                  };
+                });
+                // sourceProfile.valuesetBindings.datatypesMap[
+                //   dtBindings['$'].ID
+                // ] = {
+                //   bindingStrength:
+                //     dtBindings.ValueSetBinding[0]['$']
+                //       .BindingStrength,
+                //   target: dtBindings.ValueSetBinding[0]['$'].Target,
+                //   bindingLocations:
+                //     dtBindings.ValueSetBinding[0].BindingLocations[0],
+                //   bindings: dtBindings.ValueSetBinding[0].Bindings[0],
+                // };
               }
             );
           }
@@ -458,18 +481,33 @@ let DifferentialService = {
                 (segmentBindings) => {
                   derivedIg.valuesetBindings.segmentsMap[
                     segmentBindings['$'].ID
-                  ] = {
-                    bindingStrength:
-                      segmentBindings.ValueSetBinding[0]['$']
-                        .BindingStrength,
-                    target:
-                      segmentBindings.ValueSetBinding[0]['$'].Target,
-                    bindingLocations:
-                      segmentBindings.ValueSetBinding[0]
-                        .BindingLocations[0],
-                    bindings:
-                      segmentBindings.ValueSetBinding[0].Bindings[0],
-                  };
+                  ] = segmentBindings.ValueSetBinding.map(
+                    (vsBinding) => {
+                      return {
+                        bindingStrength:
+                          vsBinding['$'].BindingStrength,
+                        target: vsBinding['$'].Target,
+                        bindingLocations:
+                          vsBinding.BindingLocations[0],
+                        bindings: vsBinding.Bindings[0],
+                      };
+                    }
+                  );
+
+                  // derivedIg.valuesetBindings.segmentsMap[
+                  //   segmentBindings['$'].ID
+                  // ] = {
+                  //   bindingStrength:
+                  //     segmentBindings.ValueSetBinding[0]['$']
+                  //       .BindingStrength,
+                  //   target:
+                  //     segmentBindings.ValueSetBinding[0]['$'].Target,
+                  //   bindingLocations:
+                  //     segmentBindings.ValueSetBinding[0]
+                  //       .BindingLocations[0],
+                  //   bindings:
+                  //     segmentBindings.ValueSetBinding[0].Bindings[0],
+                  // };
                 }
               );
             }
@@ -486,17 +524,28 @@ let DifferentialService = {
                 (dtBindings) => {
                   derivedIg.valuesetBindings.datatypesMap[
                     dtBindings['$'].ID
-                  ] = {
-                    bindingStrength:
-                      dtBindings.ValueSetBinding[0]['$']
-                        .BindingStrength,
-                    target: dtBindings.ValueSetBinding[0]['$'].Target,
-                    bindingLocations:
-                      dtBindings.ValueSetBinding[0]
-                        .BindingLocations[0],
-                    bindings:
-                      dtBindings.ValueSetBinding[0].Bindings[0],
-                  };
+                  ] = dtBindings.ValueSetBinding.map((vsBinding) => {
+                    return {
+                      bindingStrength: vsBinding['$'].BindingStrength,
+                      target: vsBinding['$'].Target,
+                      bindingLocations: vsBinding.BindingLocations[0],
+                      bindings: vsBinding.Bindings[0],
+                    };
+                  });
+
+                  // derivedIg.valuesetBindings.datatypesMap[
+                  //   dtBindings['$'].ID
+                  // ] = {
+                  //   bindingStrength:
+                  //     dtBindings.ValueSetBinding[0]['$']
+                  //       .BindingStrength,
+                  //   target: dtBindings.ValueSetBinding[0]['$'].Target,
+                  //   bindingLocations:
+                  //     dtBindings.ValueSetBinding[0]
+                  //       .BindingLocations[0],
+                  //   bindings:
+                  //     dtBindings.ValueSetBinding[0].Bindings[0],
+                  // };
                 }
               );
             }

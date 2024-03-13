@@ -122,7 +122,6 @@ let ProfileService = {
     let res = [];
     if (profile) {
       if (profile.Segment) {
-        console.log(valuesetBindings);
         res.push(
           ...this.extractSegmentFromSegRefs(
             profile.Segment,
@@ -210,6 +209,7 @@ let ProfileService = {
       } else {
         path += `.${segRef['$'].position}`;
       }
+
       res.push({
         data: {
           position: segRef['$'].position,
@@ -241,7 +241,8 @@ let ProfileService = {
             path,
             datatypesMap,
             valuesetsMap,
-            valuesetBindings
+            valuesetBindings,
+            segRef['$'].Ref
           ),
         ],
         conformanceStatements: [

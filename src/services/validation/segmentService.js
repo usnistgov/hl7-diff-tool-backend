@@ -103,7 +103,8 @@ let SegmentService = {
     path,
     datatypesMap,
     valuesetsMap,
-    valuesetBindings
+    valuesetBindings,
+    segRef
   ) {
     let results = [];
     fields.forEach((field) => {
@@ -167,17 +168,19 @@ let SegmentService = {
         if (!fieldDifferential.data.bindings) {
           fieldDifferential.data.bindings = [];
         }
-        if (field.binding) {
-          fieldDifferential.data.bindings.push(
-            ...ValuesetService.populateSrcValuesetsValidation(
-              igId,
-              field,
-              configuration,
-              valuesetsMap,
-              valuesetBindings
-            )
-          );
-        }
+
+        fieldDifferential.data.bindings.push(
+          ...ValuesetService.populateSrcValuesetsValidation(
+            igId,
+            field,
+            configuration,
+            valuesetsMap,
+            valuesetBindings,
+            currentPath,
+            segRef,
+            'segment'
+          )
+        );
         // initialize with bindings from valuesetBindings.xml file
       }
 
