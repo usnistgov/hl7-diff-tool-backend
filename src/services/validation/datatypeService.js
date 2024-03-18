@@ -85,7 +85,8 @@ let DatatypeService = {
     datatypesMap,
     level,
     valuesetsMap,
-    valuesetBindings
+    valuesetBindings,
+    parentDatatype
   ) {
     let results = [];
     components.forEach((component) => {
@@ -144,23 +145,26 @@ let DatatypeService = {
           datatypesMap,
           2,
           valuesetsMap,
-          valuesetBindings
+          valuesetBindings,
+          parentDatatype
         );
       }
       if (configuration.valueset) {
-        if (component.binding) {
-          componentDifferential.data.bindings =
-            ValuesetService.populateSrcValuesetsValidation(
-              igId,
-              component,
-              configuration,
-              valuesetsMap,
-              valuesetBindings,
-              currentPath,
-              component.datatype,
-              'datatype'
-            );
+        if (!componentDifferential.data.bindings) {
+          componentDifferential.data.bindings = [];
         }
+        componentDifferential.data.bindings.push(
+          ...ValuesetService.populateSrcValuesetsValidation(
+            igId,
+            component,
+            configuration,
+            valuesetsMap,
+            valuesetBindings,
+            currentPath,
+            parentDatatype,
+            'datatype'
+          )
+        );
       }
 
       results.push(componentDifferential);

@@ -164,6 +164,7 @@ let SegmentService = {
           derived: {},
         };
       }
+
       if (configuration.valueset) {
         if (!fieldDifferential.data.bindings) {
           fieldDifferential.data.bindings = [];
@@ -197,7 +198,8 @@ let SegmentService = {
             datatypesMap,
             1,
             valuesetsMap,
-            valuesetBindings
+            valuesetBindings,
+            field.datatype
           );
       }
 

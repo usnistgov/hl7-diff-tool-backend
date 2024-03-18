@@ -240,7 +240,7 @@ let ValuesetService = {
     }
     // find the correct binding from 'valuesetBindings' based on segment or datatype
 
-    const parentId = parentRef.split(' ');
+    const parentId = parentRef.split(' ')[0];
     if (parentId) {
       let mapName = '';
       if (parentType === 'segment') {
@@ -248,6 +248,7 @@ let ValuesetService = {
       } else if (parentType === 'datatype') {
         mapName = 'datatypesMap';
       }
+
       if (
         valuesetBindings &&
         valuesetBindings[mapName] &&
@@ -359,6 +360,7 @@ let ValuesetService = {
       mapName = 'datatypesMap';
     }
     let parentRef = derivedParentLabel.split(' ')[0];
+
     if (
       fieldDifferential.data.bindings &&
       fieldDifferential.data.bindings[0]
