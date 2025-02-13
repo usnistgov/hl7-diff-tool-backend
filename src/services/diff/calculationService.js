@@ -111,8 +111,8 @@ let CalculationService = {
         ),
         conformanceStatements: confProfile.Constraints
           ? this.extractConformanceStatements(
-              confProfile.Constraints[0].ConformanceStatement
-            )
+            confProfile.Constraints[0].ConformanceStatement
+          )
           : [],
         //TODO: conconst
         coConstraints: this.extractCoConstraints(
@@ -869,7 +869,7 @@ let CalculationService = {
               differential.srcIg.id,
               derivedIgId,
               segmentsMap[differential.srcIg.id][
-                sourceSegment.data.idSeg
+              sourceSegment.data.idSeg
               ],
               segmentsMap[derivedIgId][segmentRef.data.idSeg],
               configuration,
@@ -964,10 +964,10 @@ let CalculationService = {
             !originalProfile.summaries.segments[keyName][derivedIgId]
           ) {
             originalProfile.summaries.segments[keyName][derivedIgId] =
-              {
-                number: 0,
-                // changes: [],
-              };
+            {
+              number: 0,
+              // changes: [],
+            };
           }
           originalProfile.summaries.segments[keyName][derivedIgId]
             .number++;
@@ -977,7 +977,7 @@ let CalculationService = {
           }
           if (
             !originalProfile.summaries.segments[keyName].changes[
-              `${sourceSegment.data.path}.${sourceSegment.data.ref}`
+            `${sourceSegment.data.path}.${sourceSegment.data.ref}`
             ]
           ) {
             originalProfile.summaries.segments[keyName].changes[
@@ -1049,7 +1049,7 @@ let CalculationService = {
                   //table changed
                   if (
                     !coConstraintDifferential.data.tables.derived[
-                      derivedIgId
+                    derivedIgId
                     ]
                   ) {
                     coConstraintDifferential.data.tables.derived[
@@ -1190,13 +1190,13 @@ let CalculationService = {
                 status: 'added',
               };
               bindingDifferential.data.context.derived[derivedIgId] =
-                {
-                  value: context,
-                };
+              {
+                value: context,
+              };
               bindingDifferential.data.strength.derived[derivedIgId] =
-                {
-                  value: derivedBinding.strength,
-                };
+              {
+                value: derivedBinding.strength,
+              };
               bindingDifferential.data.locations.derived[
                 derivedIgId
               ] = {
@@ -1216,16 +1216,16 @@ let CalculationService = {
               };
             } else {
               bindingDifferential.data.context.derived[derivedIgId] =
-                {
-                  value: context,
-                };
+              {
+                value: context,
+              };
               if (
                 derivedBinding.strength !=
                 bindingDifferential.data.strength.src.value
               ) {
                 if (
                   !bindingDifferential.data.strength.derived[
-                    derivedIgId
+                  derivedIgId
                   ]
                 ) {
                   differential.changed = true;
@@ -1260,7 +1260,7 @@ let CalculationService = {
               if (locationsDiff && locationsDiff.length > 0) {
                 if (
                   !bindingDifferential.data.locations.derived[
-                    derivedIgId
+                  derivedIgId
                   ]
                 ) {
                   differential.changed = true;
@@ -1352,7 +1352,7 @@ let CalculationService = {
                           );
                         if (
                           !bindingDifferential.data.valuesets.derived[
-                            derivedIgId
+                          derivedIgId
                           ]
                         ) {
                           bindingDifferential.data.valuesets.derived[
@@ -1412,7 +1412,7 @@ let CalculationService = {
 
                     if (
                       !bindingDifferential.data.valuesets.derived[
-                        derivedIgId
+                      derivedIgId
                       ]
                     ) {
                       bindingDifferential.data.valuesets.derived[
@@ -1443,7 +1443,7 @@ let CalculationService = {
                     let vs = derivedBinding.valuesets.find((v, i) => {
                       return (
                         derivedBinding.versions[i] ===
-                          valueset.version &&
+                        valueset.version &&
                         v === valueset.bindingIdentifier
                       );
                     });
@@ -1465,7 +1465,7 @@ let CalculationService = {
                       changed = true;
                       if (
                         !bindingDifferential.data.valuesets.derived[
-                          derivedIgId
+                        derivedIgId
                         ]
                       ) {
                         bindingDifferential.data.valuesets.derived[
@@ -1483,12 +1483,12 @@ let CalculationService = {
                           valuesetsMap[derivedIgId][
                             valueset.bindingIdentifier
                           ] &&
-                          valuesetsMap[derivedIgId][
+                            valuesetsMap[derivedIgId][
                             valueset.bindingIdentifier
-                          ][valueset.version]
+                            ][valueset.version]
                             ? valuesetsMap[derivedIgId][
-                                valueset.bindingIdentifier
-                              ][valueset.version].children
+                              valueset.bindingIdentifier
+                            ][valueset.version].children
                             : [],
                         status: 'deleted',
                       });
@@ -1551,9 +1551,9 @@ let CalculationService = {
               status: 'added',
             };
             newBindingDifferential.data.context.derived[derivedIgId] =
-              {
-                value: context,
-              };
+            {
+              value: context,
+            };
             newBindingDifferential.data.strength.derived[
               derivedIgId
             ] = {
@@ -1865,7 +1865,8 @@ let CalculationService = {
         derivedField,
         `${segmentDifferential.data.path}.${derivedField.position}`,
         fieldDifferential.data.usage.src.value,
-        derivedField.usage
+        derivedField.usage,
+        segmentDifferential.data.usage.src.value
       );
       if (
         derivedField.usage != fieldDifferential.data.usage.src.value
@@ -1911,7 +1912,7 @@ let CalculationService = {
           (el) =>
             el.name === fieldDifferential.data.name.src.value &&
             el.path ===
-              `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`
+            `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`
         );
         if (dataElement) {
           if (!dataElement.changes.usage) {
@@ -1968,7 +1969,7 @@ let CalculationService = {
     if (
       configuration.predicate &&
       derivedField.predicate !=
-        fieldDifferential.data.predicate.src.value
+      fieldDifferential.data.predicate.src.value
     ) {
       if (!fieldDifferential.data.predicate.derived[derivedIgId]) {
         segmentDifferential.changed = true;
@@ -2050,9 +2051,9 @@ let CalculationService = {
                     status: 'changed',
                   };
                   existingSlice.data.occurence.derived[derivedIgId] =
-                    {
-                      value: slice.occurence,
-                    };
+                  {
+                    value: slice.occurence,
+                  };
                 }
                 if (
                   existingSlice.data.comment.src.value !==
@@ -2063,9 +2064,9 @@ let CalculationService = {
                     status: 'changed',
                   };
                   existingSlice.data.occurence.derived[derivedIgId] =
-                    {
-                      value: slice.occurence,
-                    };
+                  {
+                    value: slice.occurence,
+                  };
                 }
                 existingSlice.changed = true;
                 segmentDifferential.changed = true;
@@ -2137,9 +2138,9 @@ let CalculationService = {
                     status: 'changed',
                   };
                   existingSlice.data.assertion.derived[derivedIgId] =
-                    {
-                      value: slice.assertion,
-                    };
+                  {
+                    value: slice.assertion,
+                  };
                 }
                 if (
                   existingSlice.data.comment.src.value !==
@@ -2150,9 +2151,9 @@ let CalculationService = {
                     status: 'changed',
                   };
                   existingSlice.data.assertion.derived[derivedIgId] =
-                    {
-                      value: slice.assertion,
-                    };
+                  {
+                    value: slice.assertion,
+                  };
                 }
                 existingSlice.changed = true;
                 segmentDifferential.changed = true;
@@ -2436,7 +2437,7 @@ let CalculationService = {
           }
           if (
             !originalProfile.summaries.datatypes[keyName].changes[
-              `${segmentDifferential.data.ref}.${fieldDifferential.data.position}.${fieldDifferential.data.name.src.value}`
+            `${segmentDifferential.data.ref}.${fieldDifferential.data.position}.${fieldDifferential.data.name.src.value}`
             ]
           ) {
             originalProfile.summaries.datatypes[keyName].changes[
@@ -2456,7 +2457,7 @@ let CalculationService = {
 
       const srcDt =
         datatypesMap[srcIgId][
-          fieldDifferential.data.datatype.src.value
+        fieldDifferential.data.datatype.src.value
         ];
       const derivedDt =
         datatypesMap[derivedIgId][derivedField.datatype];
@@ -2479,7 +2480,7 @@ let CalculationService = {
           (el) =>
             el.name === fieldDifferential.data.name.src.value &&
             el.path ===
-              `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`
+            `${segmentDifferential.data.ref}.${fieldDifferential.data.position}`
         );
         if (dataElement) {
           if (!dataElement.changes.datatype) {
@@ -3005,7 +3006,7 @@ let CalculationService = {
     if (
       configuration.predicate &&
       derivedComponent.predicate !=
-        differential.data.predicate.src.value
+      differential.data.predicate.src.value
     ) {
       if (!differential.data.predicate.derived[derivedIgId]) {
         segmentDifferential.changed = true;
@@ -3108,7 +3109,7 @@ let CalculationService = {
           }
           if (
             !originalProfile.summaries.datatypes[keyName].changes[
-              `${path}.${differential.data.name.src.value}`
+            `${path}.${differential.data.name.src.value}`
             ]
           ) {
             originalProfile.summaries.datatypes[keyName].changes[

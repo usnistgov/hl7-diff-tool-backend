@@ -1,7 +1,7 @@
-const MetricService = require("./metricService");
+const MetricService = require('./metricService');
 
 let ComparisonService = {
-  compare: function(
+  compare: function (
     originalId,
     originalProfile,
     original,
@@ -9,7 +9,7 @@ let ComparisonService = {
     configuration
   ) {
     if (
-      original.data.type === "segmentRef" &&
+      original.data.type === 'segmentRef' &&
       original.data.label.src.value !== derived.label
     ) {
       if (!original.data.label.derived) {
@@ -17,18 +17,20 @@ let ComparisonService = {
       }
       original.data.label.derived[originalId] = {
         value: derived.label,
-        reason: ""
+        reason: '',
       };
     }
-    if(configuration.predicate){
-
-      if (original.data.predicate && original.data.predicate.src.value !== derived.predicate) {
+    if (configuration.predicate) {
+      if (
+        original.data.predicate &&
+        original.data.predicate.src.value !== derived.predicate
+      ) {
         if (!original.data.predicate.derived) {
           original.data.predicate.derived = {};
         }
         original.changed = true;
         original.data.changed = true;
-        original.data.changeTypes.push("predicate");
+        original.data.changeTypes.push('predicate');
 
         original.data.predicate.derived[originalId] = {
           value: derived.predicate,
@@ -40,21 +42,20 @@ let ComparisonService = {
       if (!original.data.consequential) {
         original.data.consequential = {
           src: false,
-          derived: {}
+          derived: {},
         };
       }
-      if(derived.usage === "RE" || derived.usage === "R"){
+      if (derived.usage === 'RE' || derived.usage === 'R') {
         original.data.consequential.derived[originalId] = true;
         original.data.consequential.src = true;
       }
       if (original.data.usage.src.value !== derived.usage) {
-      
         if (!original.data.usage.derived) {
           original.data.usage.derived = {};
         }
         original.changed = true;
         original.data.changed = true;
-        original.data.changeTypes.push("usage");
+        original.data.changeTypes.push('usage');
 
         const compliance = MetricService.updateUsageMetrics(
           originalId,
@@ -67,8 +68,8 @@ let ComparisonService = {
         );
         original.data.usage.derived[originalId] = {
           value: derived.usage,
-          reason: "",
-          compliance
+          reason: '',
+          compliance,
         };
       } else {
       }
@@ -84,7 +85,7 @@ let ComparisonService = {
         }
         original.changed = true;
         original.data.changed = true;
-        original.data.changeTypes.push("cardinality");
+        original.data.changeTypes.push('cardinality');
 
         const compliance = MetricService.updateCardinalityMetrics(
           originalId,
@@ -97,15 +98,15 @@ let ComparisonService = {
         );
         original.data.cardinality.derived[originalId] = {
           value: card,
-          reason: "",
-          compliance
+          reason: '',
+          compliance,
         };
       }
     }
   },
   createCard(min, max) {
     return `${min}..${max}`;
-  }
+  },
 };
 
 module.exports = ComparisonService;

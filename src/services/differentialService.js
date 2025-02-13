@@ -42,6 +42,10 @@ let DifferentialService = {
           if (section['$'].type === 'CONFORMANCEPROFILEREGISTRY') {
             sourceProfile.profiles = section.Section;
           }
+          if (section['$'].type === 'COMPOSITEPROFILEREGISTRY') {
+            // const metadata = section.Section[0].CompositeProfile[0]['$'];
+            sourceProfile.profiles = section.Section[0].CompositeProfile[0].Section;
+          }
 
           if (section['$'].type === 'SEGMENTREGISTRY') {
             sourceProfile.segments = section.Section;
@@ -104,6 +108,11 @@ let DifferentialService = {
 
           if (section['$'].type === 'CONFORMANCEPROFILEREGISTRY') {
             derivedIg.profiles = section.Section;
+
+          }
+          if (section['$'].type === 'COMPOSITEPROFILEREGISTRY') {
+            // const metadata = section.Section[0].CompositeProfile[0]['$'];
+            derivedIg.profiles = section.Section[0].CompositeProfile[0].Section;
           }
           if (section['$'].type === 'SEGMENTREGISTRY') {
             derivedIg.segments = section.Section;
@@ -114,6 +123,7 @@ let DifferentialService = {
           if (section['$'].type === 'VALUESETREGISTRY') {
             derivedIg.valuesets = section.Section;
           }
+     
         }
         derivedIgs.push(derivedIg);
       }
@@ -130,7 +140,7 @@ let DifferentialService = {
   },
   streamJSONObject(jsonObject) {
     const stream = new Readable({
-      read() {},
+      read() { },
     });
 
     const jsonString = JSON.stringify(jsonObject);

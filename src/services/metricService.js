@@ -22,7 +22,7 @@ let MetricService = {
 
       if (
         !originalProfile.summaries.usageChangesOverview[path][
-          originalId
+        originalId
         ]
       ) {
         originalProfile.summaries.usageChangesOverview[path][
@@ -60,7 +60,7 @@ let MetricService = {
       }
       if (
         !originalProfile.summaries.changesTable[originalId][path][
-          option
+        option
         ]
       ) {
         originalProfile.summaries.changesTable[originalId][path][
@@ -768,7 +768,7 @@ let MetricService = {
 
       if (
         !originalProfile.summaries.complianceErrorTable[path][
-          originalId
+        originalId
         ]
       ) {
         originalProfile.summaries.complianceErrorTable[path][
@@ -1038,7 +1038,8 @@ let MetricService = {
     element,
     globalPath,
     srcValue,
-    derivedValue
+    derivedValue,
+    parentUsage
   ) {
     // Summeries for elements that are still Optional
     if (derivedValue === 'O') {
@@ -1048,11 +1049,12 @@ let MetricService = {
           name: element.name,
           globalPath,
           path,
+          parentUsage
         };
       }
       if (
         !originalProfile.summaries.elementsWithOUsage[path][
-          originalId
+        originalId
         ]
       ) {
         originalProfile.summaries.elementsWithOUsage[path][
@@ -1069,8 +1071,14 @@ let MetricService = {
       }
       if (!originalProfile.summaries.overview[originalId].oUsage) {
         originalProfile.summaries.overview[originalId].oUsage = 0;
+        originalProfile.summaries.overview[originalId].oUsageWithConsequentialParent = 0;
       }
       originalProfile.summaries.overview[originalId].oUsage++;
+
+      // TODO: Add C usage with R or RE
+      if (parentUsage === 'R' || parentUsage === 'RE') {
+        originalProfile.summaries.overview[originalId].oUsageWithConsequentialParent++;
+      }
     }
   },
 };

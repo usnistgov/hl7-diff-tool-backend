@@ -235,6 +235,10 @@ let ProfileService = {
             src: { value: segRef['$'].description },
             derived: {},
           },
+          usage: {
+            src: { value: segRef['$'].usage },
+            derived: {},
+          },
           changeTypes: [],
         },
         changed: false,

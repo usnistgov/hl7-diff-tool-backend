@@ -31,7 +31,6 @@ app.use(
     limit: '50mb',
   })
 );
-console.log('Parser1');
 
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -58,8 +57,8 @@ app.use(function (req, res, next) {
       message: 'No such endpoint exists',
     },
   };
-
-  return res.error(response);
+  return res.status(404).json(response);
+  // return res.error(response);
 });
 
 // error handler in case of parsing/other errors not handled by controllers
@@ -79,8 +78,8 @@ app.set('port', process.env.PORT || 8107);
 let server = app.listen(app.get('port'), function () {
   console.log(
     'Express server listening on port ' +
-      server.address().port +
-      ' Environment: ',
+    server.address().port +
+    ' Environment: ',
     process.env.ENV
   );
 });
@@ -92,7 +91,7 @@ function customJsonMiddleware(req, res, next) {
     // Use a Readable stream to stream the JSON data
     const Readable = require('stream').Readable;
     const dataStream = new Readable({
-      read() {},
+      read() { },
     });
     try {
       // Convert data to JSON in chunks
@@ -102,7 +101,6 @@ function customJsonMiddleware(req, res, next) {
       // const contentLength = compressedData.length;
       const contentLength = jsonString.length;
 
-      console.log('--0', contentLength);
       let position = 0;
       const chunkSize = 10024; // Adjust chunk size as needed
       let size = 0;
@@ -124,7 +122,6 @@ function customJsonMiddleware(req, res, next) {
             process.nextTick(pushData);
           }
         } else {
-          console.log('PSITION:', position);
           dataStream.push(null);
         }
       };
